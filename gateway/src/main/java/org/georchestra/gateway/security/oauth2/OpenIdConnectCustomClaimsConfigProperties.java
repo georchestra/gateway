@@ -182,6 +182,12 @@ public @Data class OpenIdConnectCustomClaimsConfigProperties {
         private boolean splitcsv = false;
 
         /**
+         * A literal prefix to strip from each extracted role name, if present, before
+         * applying uppercase/normalize transforms.
+         */
+        private String removePrefix;
+
+        /**
          * Retrieves the JSONPath extractor for roles.
          *
          * @return an {@link Optional} containing the {@link JsonPathExtractor} for role
@@ -221,10 +227,22 @@ public @Data class OpenIdConnectCustomClaimsConfigProperties {
          * @return The transformed role value.
          */
         private List<String> applyTransforms(String value) {
+            Function<String, String> removePrefixF = StringUtils.hasText(removePrefix) ? this::removePrefix
+                    : Function.identity();
             Function<String, String> uppercaseF = isUppercase() ? String::toUpperCase : Function.identity();
             Function<String, String> normalizeF = isNormalize() ? this::normalize : Function.identity();
             Stream<String> valueAsStream = isSplitcsv() ? Stream.of(value.split(";")) : Stream.of(value);
-            return valueAsStream.map(uppercaseF).map(normalizeF).toList();
+            return valueAsStream.map(removePrefixF).map(uppercaseF).map(normalizeF).toList();
+        }
+
+        /**
+         * Strips {@link #removePrefix} from the beginning of {@code value}, if present.
+         *
+         * @param value The role value.
+         * @return The role value without its leading prefix.
+         */
+        private String removePrefix(@NonNull String value) {
+            return value.startsWith(removePrefix) ? value.substring(removePrefix.length()) : value;
         }
 
         /**

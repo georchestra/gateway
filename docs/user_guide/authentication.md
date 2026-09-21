@@ -341,6 +341,21 @@ georchestra:
                 splitcsv: true
 ```
 
+It could also arise that role names come with an unwanted literal prefix (e.g. `prefix_gdi_admin` when only `admin` is expected). Such prefix can be stripped from each role name (after splitting, if `splitcsv` is used, and before `uppercase`/`normalize` are applied) using the "removePrefix" configuration property:
+```yaml
+georchestra:
+  gateway:
+    security:
+      oidc:
+        claims:
+          provider:
+            <provider-name>: 
+              roles:
+                json.path:
+                  - "$.groups"
+                removePrefix: "role_gdi_"
+```
+
 #### Provider-Specific Claims Example
 
 You can override general claim settings for specific providers:
