@@ -257,9 +257,9 @@ class LdapAccountsManager extends AbstractAccountsManager {
         for (String role : rolesToRemove) {
             roleDao.deleteUser(role, modifiedAccount);
         }
-        if (modifiedAccount.getOrg() != null) {
-            List<String> roles = roleDao.findAllForOrg(orgsDao.findByCommonName(modifiedAccount.getOrg())).stream()
-                    .map(Role::getName).collect(Collectors.toList());
+        if (modifiedAccount.getOAuth2OrgId() != null) {
+            List<String> roles = roleDao.findAllForOrg(orgsDao.findByOrgUniqueId(modifiedAccount.getOAuth2OrgId()))
+                    .stream().map(Role::getName).collect(Collectors.toList());
             roleDao.addUsersInRoles(roles, List.of(modifiedAccount));
         }
     }
@@ -391,7 +391,7 @@ class LdapAccountsManager extends AbstractAccountsManager {
 
     /**
      * Retrieve LDAP organization from org value
-     * 
+     *
      * @param oAuth2Provider the OAuth2 provider name (may be null for non-OAuth2
      *                       users)
      * @throws IllegalStateException if the org can't be created/updated
