@@ -257,10 +257,18 @@ class LdapAccountsManager extends AbstractAccountsManager {
         for (String role : rolesToRemove) {
             roleDao.deleteUser(role, modifiedAccount);
         }
-        if (modifiedAccount.getOAuth2OrgId() != null) {
-            List<String> roles = roleDao.findAllForOrg(orgsDao.findByOrgUniqueId(modifiedAccount.getOAuth2OrgId()))
-                    .stream().map(Role::getName).collect(Collectors.toList());
-            roleDao.addUsersInRoles(roles, List.of(modifiedAccount));
+        if (modifiedAccount.getOrg() != null) {
+            String orgUniqueId = Optional.ofNullable(modifiedAccount.getOAuth2OrgId()).orElse("");
+            Optional<Org> org = StringUtils.isNotEmpty(orgUniqueId) ? findOrgById(modifiedAccount.getOrg(), orgUniqueId)
+                    : findOrg(modifiedAccount.getOrg());
+            if (org.isPresent()) {
+                List<String> roles = roleDao.findAllForOrg(org.get()).stream().map(Role::getName)
+                        .collect(Collectors.toList());
+                roleDao.addUsersInRoles(roles, List.of(modifiedAccount));
+            } else {
+                log.warn("Org '{}' referenced by user '{}' was not found, skipping org roles inheritance",
+                        modifiedAccount.getOrg(), modifiedAccount.getUid());
+            }
         }
     }
 
