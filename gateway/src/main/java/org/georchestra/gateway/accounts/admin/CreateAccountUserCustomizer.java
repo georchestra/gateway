@@ -28,6 +28,7 @@ import org.georchestra.ds.users.AccountDao;
 import org.georchestra.gateway.security.GeorchestraUserCustomizerExtension;
 import org.georchestra.gateway.security.exceptions.DuplicatedEmailFoundException;
 import org.georchestra.gateway.security.exceptions.PendingUserException;
+import org.georchestra.gateway.security.oauth2.OpenIdConnectCustomConfig;
 import org.georchestra.security.model.GeorchestraUser;
 import org.springframework.core.Ordered;
 import org.springframework.ldap.NameNotFoundException;
@@ -48,6 +49,7 @@ public class CreateAccountUserCustomizer implements GeorchestraUserCustomizerExt
 
     private final @NonNull AccountManager accounts;
     private final @NonNull AccountDao accountDao;
+    private final @NonNull OpenIdConnectCustomConfig oidcCustomConfig;
 
     private final WeakHashMap<Authentication, GeorchestraUser> loggedInUsers = new WeakHashMap<>();
 
@@ -70,38 +72,44 @@ public class CreateAccountUserCustomizer implements GeorchestraUserCustomizerExt
     @Override
     public @NonNull GeorchestraUser apply(@NonNull Authentication auth, @NonNull GeorchestraUser mappedUser)
             throws DuplicatedEmailFoundException {
-        final boolean isOauth2 = auth instanceof OAuth2AuthenticationToken;
         final boolean isPreAuth = auth instanceof PreAuthenticatedAuthenticationToken;
-        if (isOauth2) {
-            Objects.requireNonNull(mappedUser.getOAuth2Provider(), "GeorchestraUser.oAuth2Provider is null");
-            Objects.requireNonNull(mappedUser.getOAuth2Uid(), "GeorchestraUser.oAuth2Uid is null");
-        }
-        if (isPreAuth) {
-            Objects.requireNonNull(mappedUser.getUsername(), "GeorchestraUser.username is null");
-        }
+        final boolean isOauth2Authoritative = auth instanceof OAuth2AuthenticationToken && this.oidcCustomConfig
+                .getProviderConfig(((OAuth2AuthenticationToken) auth).getAuthorizedClientRegistrationId())
+                .map(OpenIdConnectCustomConfig::getAuthoritative).orElseGet(() -> false);
+        final boolean isOauth2 = auth instanceof OAuth2AuthenticationToken && !isOauth2Authoritative;
         if (isOauth2 || isPreAuth) {
-            GeorchestraUser user = loggedInUsers.get(auth);
-            boolean ensureOrgUniqueId = false;
-            if (user != null) {
-                Optional<GeorchestraUser> ldapUser = accounts.find(mappedUser);
-                if (ldapUser.isPresent()) {
-                    user = ldapUser.get();
-                }
-            } else {
-                user = accounts.getOrCreate(mappedUser);
-                ensureOrgUniqueId = true;
-            }
+            GeorchestraUser user = applyInternal(auth, mappedUser, accounts::getOrCreate);
             if (isPendingAccount(user)) {
                 throw new PendingUserException("User is pending approval.");
             }
-            if (ensureOrgUniqueId) {
-                accounts.createUserOrgUniqueIdIfMissing(mappedUser);
-            }
-            user.setIsExternalAuth(true);
-            loggedInUsers.put(auth, user);
             return user;
         }
+        if (isOauth2Authoritative) {
+            return applyInternal(auth, mappedUser, accounts::createOrUpdate);
+        }
         return mappedUser;
+    }
+
+    @FunctionalInterface
+    interface DelegateToAccountManager {
+        GeorchestraUser delegate(GeorchestraUser user);
+    }
+
+    private GeorchestraUser applyInternal(@NonNull Authentication auth, @NonNull GeorchestraUser mappedUser,
+            DelegateToAccountManager delegateToAccountManager) {
+        Objects.requireNonNull(mappedUser.getUsername(), "GeorchestraUser.username is null");
+        GeorchestraUser user = loggedInUsers.get(auth);
+        if (user != null) {
+            Optional<GeorchestraUser> ldapUser = accounts.find(mappedUser);
+            if (ldapUser.isPresent()) {
+                user = ldapUser.get();
+            }
+        } else {
+            user = delegateToAccountManager.delegate(mappedUser);
+        }
+        user.setIsExternalAuth(true);
+        loggedInUsers.put(auth, user);
+        return user;
     }
 
     /**

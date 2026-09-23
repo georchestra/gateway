@@ -20,6 +20,8 @@ package org.georchestra.gateway.accounts.admin;
 
 import java.util.Optional;
 
+import org.georchestra.ds.DataServiceException;
+import org.georchestra.ds.users.DuplicatedEmailException;
 import org.georchestra.gateway.security.GeorchestraUserMapper;
 import org.georchestra.gateway.security.ResolveGeorchestraUserGlobalFilter;
 import org.georchestra.security.model.GeorchestraUser;
@@ -71,6 +73,8 @@ public interface AccountManager {
      *         created
      */
     GeorchestraUser getOrCreate(GeorchestraUser mappedUser);
+
+    GeorchestraUser createOrUpdate(GeorchestraUser mappedUser);
 
     /**
      * Retrieves the stored organization corresponding to the given

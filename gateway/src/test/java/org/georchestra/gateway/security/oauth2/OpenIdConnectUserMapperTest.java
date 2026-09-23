@@ -413,6 +413,31 @@ class OpenIdConnectUserMapperTest {
         assertThat(result.orElseThrow().getUsername()).isEqualTo("John.Doe@test.com");
     }
 
+    @Test
+    void applyNonStandardClaims_json_path_to_roles_normalise_no_split_as_csv() throws ParseException {
+        nonStandardClaimsConfig.getRoles().getJson().getPath().add("$.groups");
+        final String json = "{'groups': 'TEST_ROLE;Apps_Georchestra;Other_role'}";
+        Map<String, Object> claims = sampleClaims(json);
+
+        GeorchestraUser target = new GeorchestraUser();
+        mapper.applyGeorchestraNonStandardClaims(claims, target);
+
+        assertEquals(List.of("TEST_ROLEAPPS_GEORCHESTRAOTHER_ROLE"), target.getRoles());
+    }
+
+    @Test
+    void applyNonStandardClaims_json_path_to_roles_normalise_AND_split_as_csv() throws ParseException {
+        nonStandardClaimsConfig.getRoles().getJson().getPath().add("$.groups");
+        nonStandardClaimsConfig.getRoles().setSplitcsv(true);
+        final String json = "{'groups': 'TEST_ROLE;Apps_Georchestra;Other_role'}";
+        Map<String, Object> claims = sampleClaims(json);
+
+        GeorchestraUser target = new GeorchestraUser();
+        mapper.applyGeorchestraNonStandardClaims(claims, target);
+
+        assertEquals(List.of("TEST_ROLE", "APPS_GEORCHESTRA", "OTHER_ROLE"), target.getRoles());
+    }
+
     private OpenIdConnectUserMapper newMapper(String disableUidTransformation) {
         GeorchestraGatewaySecurityConfigProperties securityConfigProperties = new GeorchestraGatewaySecurityConfigProperties();
         securityConfigProperties.setDisableUidTransformation(disableUidTransformation);

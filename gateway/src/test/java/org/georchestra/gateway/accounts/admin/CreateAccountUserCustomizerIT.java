@@ -42,7 +42,7 @@ public class CreateAccountUserCustomizerIT {
 
     @DynamicPropertySource
     static void registerLdap(DynamicPropertyRegistry registry) {
-        registry.add("testcontainers.georchestra.ldap.host", () -> "127.0.0.1");
+        registry.add("testcontainers.georchestra.ldap.host", ldap::getHost);
         registry.add("testcontainers.georchestra.ldap.port", ldap::getMappedLdapPort);
     }
 

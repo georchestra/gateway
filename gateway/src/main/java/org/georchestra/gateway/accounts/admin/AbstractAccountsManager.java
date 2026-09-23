@@ -22,7 +22,9 @@ import java.util.Optional;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.georchestra.ds.DataServiceException;
 import org.georchestra.ds.orgs.Org;
+import org.georchestra.ds.users.DuplicatedEmailException;
 import org.georchestra.gateway.security.exceptions.DuplicatedEmailFoundException;
 import org.georchestra.gateway.security.oauth2.OpenIdConnectCustomConfig;
 import org.georchestra.security.model.GeorchestraUser;
@@ -81,6 +83,12 @@ public abstract class AbstractAccountsManager implements AccountManager {
         return find(mappedUser).orElseGet(() -> createIfMissing(mappedUser));
     }
 
+    @Override
+    public GeorchestraUser createOrUpdate(@NonNull GeorchestraUser mappedUser) {
+        return find(mappedUser).map(existing -> this.update(existing, mappedUser))
+                .orElseGet(() -> createIfMissing(mappedUser));
+    }
+
     /**
      * Retrieves the stored user corresponding to {@code mappedUser}, if it exists.
      * <p>
@@ -125,47 +133,6 @@ public abstract class AbstractAccountsManager implements AccountManager {
             return findByOAuth2Uid(oAuth2Provider, oAuth2UId);
         }
         return findByUsername(mappedUser.getUsername());
-    }
-
-    public Org findOrgByUser(GeorchestraUser existingUser) {
-        String existUserOrgCN = existingUser.getOrganization();
-        return findOrg(existUserOrgCN).orElse(null);
-    }
-
-    /**
-     * Control that orgUniqueId from provider match with georchestra orgUniqueId
-     * 
-     * @param mapped
-     * @param existingUser
-     * @return false if provider user's orgUniqueId is not same as LDAP user's
-     *         orgUniqueId
-     */
-    public Boolean isSameOrgUniqueId(GeorchestraUser mapped, GeorchestraUser existingUser) {
-        if (existingUser == null) {
-            return true;
-        }
-
-        // If provider doesn't supply orgUniqueId, don't enforce a change.
-        String mappedOrgUniqueId = normalizeOrgUniqueId(mapped.getOAuth2OrgId());
-        if (mappedOrgUniqueId.isEmpty()) {
-            return true;
-        }
-
-        if (null == existingUser.getOrganization()) {
-            return false;
-        }
-
-        // Compare mapped orgUniqueId with existing user's org uniqueOrgId
-        Org existUserOrg = findOrgByUser(existingUser);
-        if (existUserOrg == null) {
-            return false;
-        }
-
-        // Optional.ofNullable to consider that Null and empty are the same
-        String existOrgUniqueId = normalizeOrgUniqueId(existUserOrg.getOrgUniqueId());
-        // return false if provider user's orgUniqueId is not
-        // same as LDAP user's orgUniqueId
-        return mappedOrgUniqueId.equals(existOrgUniqueId);
     }
 
     /**
@@ -250,6 +217,19 @@ public abstract class AbstractAccountsManager implements AccountManager {
         }
     }
 
+    protected GeorchestraUser update(GeorchestraUser existing, GeorchestraUser mapped) {
+        lock.writeLock().lock();
+        try {
+            createUserOrgUniqueIdIfMissing(mapped);
+            updateInternal(existing, mapped);
+            return existing;
+        } catch (DataServiceException | DuplicatedEmailException e) {
+            throw new RuntimeException(e);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
     /**
      * Finds a user by their OAuth2 provider and unique identifier.
      * <p>
@@ -276,19 +256,6 @@ public abstract class AbstractAccountsManager implements AccountManager {
      *         {@link Optional} if not found
      */
     protected abstract Optional<GeorchestraUser> findByUsername(String username);
-
-    /**
-     * Finds not pending user by their email.
-     * <p>
-     * Implementations must provide a concrete method for retrieving users from
-     * storage.
-     * </p>
-     *
-     * @param email the email to search for
-     * @return an {@link Optional} containing the found user, or an empty
-     *         {@link Optional} if not found
-     */
-    protected abstract Optional<GeorchestraUser> findByEmail(String email);
 
     /**
      * Finds pending or valid user by their email.
@@ -354,4 +321,8 @@ public abstract class AbstractAccountsManager implements AccountManager {
      * @param mapped the user to create
      */
     protected abstract void createInternal(GeorchestraUser mapped);
+
+    protected abstract void updateInternal(GeorchestraUser existing, GeorchestraUser mapped)
+            throws DataServiceException, DuplicatedEmailException;
+
 }

@@ -26,7 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.georchestra.security.model.GeorchestraUser;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -177,6 +179,14 @@ public @Data class OpenIdConnectCustomClaimsConfigProperties {
          */
         private boolean append = true;
 
+        private boolean splitcsv = false;
+
+        /**
+         * A literal prefix to strip from each extracted role name, if present, before
+         * applying uppercase/normalize transforms.
+         */
+        private String removePrefix;
+
         /**
          * Retrieves the JSONPath extractor for roles.
          *
@@ -197,8 +207,8 @@ public @Data class OpenIdConnectCustomClaimsConfigProperties {
         public void apply(Map<String, Object> claims, GeorchestraUser target) {
             json().ifPresent(oidcClaimsConfig -> {
                 List<String> rawValues = oidcClaimsConfig.extract(claims);
-                List<String> oidcRoles = rawValues.stream().map(this::applyTransforms).toList(); // Ensure the resulting
-                                                                                                 // list is mutable
+                List<String> oidcRoles = rawValues.stream().map(this::applyTransforms).flatMap(List::stream).toList();
+                // Ensure the resulting is mutable
 
                 if (oidcRoles.isEmpty()) {
                     return;
@@ -216,12 +226,23 @@ public @Data class OpenIdConnectCustomClaimsConfigProperties {
          * @param value The original role value.
          * @return The transformed role value.
          */
-        private String applyTransforms(String value) {
-            String result = uppercase ? value.toUpperCase() : value;
-            if (normalize) {
-                result = normalize(result);
-            }
-            return result;
+        private List<String> applyTransforms(String value) {
+            Function<String, String> removePrefixF = StringUtils.hasText(removePrefix) ? this::removePrefix
+                    : Function.identity();
+            Function<String, String> uppercaseF = isUppercase() ? String::toUpperCase : Function.identity();
+            Function<String, String> normalizeF = isNormalize() ? this::normalize : Function.identity();
+            Stream<String> valueAsStream = isSplitcsv() ? Stream.of(value.split(";")) : Stream.of(value);
+            return valueAsStream.map(removePrefixF).map(uppercaseF).map(normalizeF).toList();
+        }
+
+        /**
+         * Strips {@link #removePrefix} from the beginning of {@code value}, if present.
+         *
+         * @param value The role value.
+         * @return The role value without its leading prefix.
+         */
+        private String removePrefix(@NonNull String value) {
+            return value.startsWith(removePrefix) ? value.substring(removePrefix.length()) : value;
         }
 
         /**

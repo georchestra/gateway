@@ -14,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -41,6 +43,13 @@ public class DefaultVsCustomGeorchestraHeadersConfigIT {
     private @Autowired WebTestClient testClient;
 
     private @Autowired GatewayConfigProperties config;
+
+    @DynamicPropertySource
+    static void setProperties(DynamicPropertyRegistry registry) {
+        registry.add("ldapHost", ldap::getHost);
+        registry.add("ldapPort", () -> ldap.getMappedPort(389));
+        registry.add("ldapScheme", () -> "ldap");
+    }
 
     @BeforeAll
     public static void setUp(WireMockRuntimeInfo wmri) {

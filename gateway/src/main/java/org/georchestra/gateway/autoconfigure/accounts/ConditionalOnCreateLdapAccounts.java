@@ -53,7 +53,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @ConditionalOnDefaultGeorchestraLdapEnabled
-@ConditionalOnProperty(name = "georchestra.gateway.security.create-non-existing-users-in-l-d-a-p", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "georchestra.gateway.security.createNonExistingUsersInLDAP", havingValue = "true", matchIfMissing = false)
 public @interface ConditionalOnCreateLdapAccounts {
 
 }

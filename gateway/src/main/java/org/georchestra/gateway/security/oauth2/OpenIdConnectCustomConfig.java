@@ -93,6 +93,13 @@ public class OpenIdConnectCustomConfig {
     private Boolean overrideExistingOrgName;
 
     /**
+     * Whether the provider is authoritative. If true, the attributes returned by
+     * the provider will override the ones stored into the geOrchestra users
+     * backend. False by default.
+     */
+    private Boolean authoritative = false;
+
+    /**
      * Ordered list of organization name resolvers to try when creating or updating
      * an organization. Each entry is a string of the form:
      * <ul>

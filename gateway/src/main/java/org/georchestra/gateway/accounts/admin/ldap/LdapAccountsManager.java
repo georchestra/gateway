@@ -22,7 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
@@ -169,11 +171,6 @@ class LdapAccountsManager extends AbstractAccountsManager {
     }
 
     @Override
-    protected Optional<GeorchestraUser> findByEmail(@NonNull String email) {
-        return demultiplexingUsersApi.findByEmail(email).map(this::ensureRolesPrefixed);
-    }
-
-    @Override
     protected Optional<GeorchestraUser> findByEmail(@NonNull String email, boolean filterPending) {
         return demultiplexingUsersApi.findByEmail(email, filterPending).map(this::ensureRolesPrefixed);
     }
@@ -241,22 +238,49 @@ class LdapAccountsManager extends AbstractAccountsManager {
         ensureRolesExist(mapped, newAccount);
     }
 
-    /**
-     * Ensures all roles assigned to a user are prefixed with {@code "ROLE_"}.
-     *
-     * @param user the user whose roles need to be normalized
-     * @return the updated user with properly formatted roles
-     */
+    @Override
+    protected void updateInternal(GeorchestraUser existing, GeorchestraUser mapped)
+            throws DataServiceException, DuplicatedEmailException {
+        Account existingAccount = mapToAccountBrief(existing);
+        Account modifiedAccount = mapToAccountBrief(mapped);
+        accountDao.update(existingAccount, modifiedAccount);
+
+        List<String> existingRoles = roleDao.findAllForUser(existingAccount).stream().map(Role::getName).toList();
+        Set<String> expectedRoles = Stream.concat(mapped.getRoles().stream(), Stream.of("USER"))
+                .map(s -> s.replaceFirst("^ROLE_", "")).collect(Collectors.toSet());
+        List<String> rolesToRemove = existingRoles.stream().filter(r -> !expectedRoles.contains(r)).toList();
+        List<String> rolesToAdd = expectedRoles.stream().filter(r -> !existingRoles.contains(r)).toList();
+        for (String role : rolesToAdd) {
+            ensureRoleExists(role);
+            roleDao.addUser(role, modifiedAccount);
+        }
+        for (String role : rolesToRemove) {
+            roleDao.deleteUser(role, modifiedAccount);
+        }
+        if (modifiedAccount.getOrg() != null) {
+            String orgUniqueId = Optional.ofNullable(modifiedAccount.getOAuth2OrgId()).orElse("");
+            Optional<Org> org = StringUtils.isNotEmpty(orgUniqueId) ? findOrgById(modifiedAccount.getOrg(), orgUniqueId)
+                    : findOrg(modifiedAccount.getOrg());
+            if (org.isPresent()) {
+                List<String> roles = roleDao.findAllForOrg(org.get()).stream().map(Role::getName)
+                        .collect(Collectors.toList());
+                roleDao.addUsersInRoles(roles, List.of(modifiedAccount));
+            } else {
+                log.warn("Org '{}' referenced by user '{}' was not found, skipping org roles inheritance",
+                        modifiedAccount.getOrg(), modifiedAccount.getUid());
+            }
+        }
+    }
+
     private void ensureRolesExist(GeorchestraUser mapped, Account newAccount) {
         try {// account created, add roles
             if (!mapped.getRoles().contains("ROLE_USER")) {
                 roleDao.addUser("USER", newAccount);
             }
             if (newAccount.getOrg() != null) {
-                List<Role> r = roleDao.findAllForOrg(orgsDao.findByCommonName(newAccount.getOrg()));
-                if (!r.isEmpty())
-                    roleDao.addUsersInRoles(r.stream().map(Role::getName).collect(Collectors.toList()),
-                            List.of(newAccount));
+                List<String> roles = roleDao.findAllForOrg(orgsDao.findByCommonName(newAccount.getOrg())).stream()
+                        .map(Role::getName).collect(Collectors.toList());
+                roleDao.addUsersInRoles(roles, List.of(newAccount));
             }
             for (String role : mapped.getRoles()) {
                 role = role.replaceFirst("^ROLE_", "");
@@ -357,7 +381,6 @@ class LdapAccountsManager extends AbstractAccountsManager {
         if (user.getOrganization() != null) {
             Account newAccount = mapToAccountBrief(user);
             orgsDao.unlinkUser(newAccount);
-            verifySingleOrgMembership(newAccount, null);
         }
     }
 
@@ -376,7 +399,7 @@ class LdapAccountsManager extends AbstractAccountsManager {
 
     /**
      * Retrieve LDAP organization from org value
-     * 
+     *
      * @param oAuth2Provider the OAuth2 provider name (may be null for non-OAuth2
      *                       users)
      * @throws IllegalStateException if the org can't be created/updated
@@ -407,7 +430,6 @@ class LdapAccountsManager extends AbstractAccountsManager {
             Org org = newOrg(orgId, orgUniqueId, oAuth2Provider);
             org.getMembers().add(newAccount.getUid());
             orgsDao.insert(org);
-            verifySingleOrgMembership(newAccount, org);
         } catch (Exception orgError) {
             throw new IllegalStateException(orgError);
         }
@@ -440,50 +462,6 @@ class LdapAccountsManager extends AbstractAccountsManager {
         }
 
         orgsDao.update(org);
-        verifySingleOrgMembership(newAccount, org);
-    }
-
-    @VisibleForTesting
-    void verifySingleOrgMembership(@NonNull Account account, @Nullable Org org) {
-        try {
-            final String uid = account.getUid();
-            if (StringUtils.isBlank(uid)) {
-                throw new IllegalStateException("Cannot verify org membership for account with blank uid");
-            }
-
-            long memberships = orgsDao.findAll().stream().filter(Objects::nonNull).filter(o -> o.getMembers() != null)
-                    .filter(o -> o.getMembers().contains(uid)).count();
-
-            if (memberships > 1) {
-                throw new IllegalStateException(
-                        String.format("User %s is linked to %d organizations; expected at most one", uid, memberships));
-            }
-
-            if (org == null || org.getId() == null) {
-                if (memberships != 0) {
-                    throw new IllegalStateException(
-                            String.format("User %s is still linked to an organization after unlink", uid));
-                }
-                return;
-            }
-
-            if (memberships != 1) {
-                throw new IllegalStateException(String
-                        .format("User %s membership count is %d after link; expected exactly one", uid, memberships));
-            }
-
-            Org linkedOrg = StringUtils.isEmpty(org.getOrgUniqueId()) ? orgsDao.findByUser(account)
-                    : orgsDao.findByOrgUniqueId(org.getOrgUniqueId());
-            if (linkedOrg == null || !org.getId().equals(linkedOrg.getId())) {
-                throw new IllegalStateException(String.format("User %s linked org mismatch, expected '%s', got '%s'",
-                        uid, org.getId(), linkedOrg == null ? null : linkedOrg.getId()));
-            }
-        } catch (Exception e) {
-            if (e instanceof IllegalStateException) {
-                throw (IllegalStateException) e;
-            }
-            throw new IllegalStateException("Error while verifying single-organization membership", e);
-        }
     }
 
     protected Optional<Org> findOrgById(String orgId, String orgUniqueId) {

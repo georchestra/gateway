@@ -37,8 +37,10 @@ georchestra:
 spring:
   cloud:
     gateway:
-      routes:
-        - id: echo
-          uri: http://${httpEchoHost}:${httpEchoPort}
-          predicates:
-            - Path=/echo/
+      server:
+        webflux:
+          routes:
+            - id: echo
+              uri: http://${httpEchoHost}:${httpEchoPort}
+              predicates:
+                - Path=/echo/

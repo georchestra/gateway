@@ -46,13 +46,16 @@ spring:
   application.name: gateway-service
   cloud:
     gateway:
-      enabled: true
-      default-filters:
-        - SecureHeaders
-        - TokenRelay
-        - RemoveSecurityHeaders
-        # AddSecHeaders appends sec-* headers to proxied requests based on the
-        # georchestra.gateway.default-headers and georchestra.gateway.servies.<service>.headers config properties
-        - AddSecHeaders
-      httpclient.wiretap: true
-      httpserver.wiretap: false
+
+      server:
+        webflux:
+          enabled: true
+          default-filters:
+            - SecureHeaders
+            - TokenRelay
+            - RemoveSecurityHeaders
+                    # AddSecHeaders appends sec-* headers to proxied requests based on the
+                    # georchestra.gateway.default-headers and georchestra.gateway.servies.<service>.headers config properties
+            - AddSecHeaders
+          httpclient.wiretap: true
+          httpserver.wiretap: false

@@ -49,58 +49,6 @@ public class LdapAccountsManagerTest {
     }
 
     @Test
-    void verifySingleOrgMembership_acceptsNoMembershipAfterUnlink() {
-        OrgsDao orgsDao = mock(OrgsDao.class);
-        when(orgsDao.findAll()).thenReturn(List.of());
-
-        LdapAccountsManager toTest = new LdapAccountsManager(mock(ApplicationEventPublisher.class),
-                mock(AccountDao.class), mock(RoleDao.class), orgsDao, null, null, null, Optional.empty());
-
-        Account account = mock(Account.class);
-        when(account.getUid()).thenReturn("uid-1");
-
-        toTest.verifySingleOrgMembership(account, null);
-    }
-
-    @Test
-    void verifySingleOrgMembership_acceptsExactlyOneExpectedMembership() {
-        OrgsDao orgsDao = mock(OrgsDao.class);
-        Org org = new Org();
-        org.setId("ORG_A");
-        org.setMembers(List.of("uid-1"));
-        when(orgsDao.findAll()).thenReturn(List.of(org));
-        when(orgsDao.findByUser(any(Account.class))).thenReturn(org);
-
-        LdapAccountsManager toTest = new LdapAccountsManager(mock(ApplicationEventPublisher.class),
-                mock(AccountDao.class), mock(RoleDao.class), orgsDao, null, null, null, Optional.empty());
-
-        Account account = mock(Account.class);
-        when(account.getUid()).thenReturn("uid-1");
-
-        toTest.verifySingleOrgMembership(account, org);
-    }
-
-    @Test
-    void verifySingleOrgMembership_failsWhenUserInMultipleOrgs() {
-        OrgsDao orgsDao = mock(OrgsDao.class);
-        Org org1 = new Org();
-        org1.setId("ORG_A");
-        org1.setMembers(List.of("uid-1"));
-        Org org2 = new Org();
-        org2.setId("ORG_B");
-        org2.setMembers(List.of("uid-1"));
-        when(orgsDao.findAll()).thenReturn(List.of(org1, org2));
-
-        LdapAccountsManager toTest = new LdapAccountsManager(mock(ApplicationEventPublisher.class),
-                mock(AccountDao.class), mock(RoleDao.class), orgsDao, null, null, null, Optional.empty());
-
-        Account account = mock(Account.class);
-        when(account.getUid()).thenReturn("uid-1");
-
-        assertThrows(IllegalStateException.class, () -> toTest.verifySingleOrgMembership(account, org1));
-    }
-
-    @Test
     void ensureOrgExists_usesExistingLdapUidWhenOAuthUidDiffers() {
         OrgsDao orgsDao = mock(OrgsDao.class);
         AccountDao accountDao = mock(AccountDao.class);
@@ -267,12 +215,13 @@ public class LdapAccountsManagerTest {
         DemultiplexingUsersApi usersApi = mock(DemultiplexingUsersApi.class);
         GeorchestraUser user = new GeorchestraUser();
         user.setRoles(new ArrayList<>(List.of("USER")));
-        when(usersApi.findByEmail("user@example.org")).thenReturn(Optional.of(new ExtendedGeorchestraUser(user)));
+        when(usersApi.findByEmail("user@example.org", false))
+                .thenReturn(Optional.of(new ExtendedGeorchestraUser(user)));
 
         LdapAccountsManager toTest = new LdapAccountsManager(mock(ApplicationEventPublisher.class), null, null, null,
                 usersApi, null, new OpenIdConnectCustomConfig(), Optional.empty());
 
-        Optional<GeorchestraUser> result = toTest.findByEmail("user@example.org");
+        Optional<GeorchestraUser> result = toTest.findByEmail("user@example.org", false);
 
         assertTrue(result.isPresent());
         assertTrue(result.get().getRoles().contains("ROLE_USER"));
@@ -482,57 +431,6 @@ public class LdapAccountsManagerTest {
                 null, null, null, Optional.empty());
 
         assertTrue(toTest.findOrgById("ORG_CN", "").isEmpty());
-    }
-
-    // ===== verifySingleOrgMembership (additional cases) =====
-
-    @Test
-    void verifySingleOrgMembership_throwsWhenUidIsBlank() {
-        OrgsDao orgsDao = mock(OrgsDao.class);
-        LdapAccountsManager toTest = new LdapAccountsManager(mock(ApplicationEventPublisher.class), null, null, orgsDao,
-                null, null, null, Optional.empty());
-
-        Account account = mock(Account.class);
-        when(account.getUid()).thenReturn("");
-
-        assertThrows(IllegalStateException.class, () -> toTest.verifySingleOrgMembership(account, null));
-    }
-
-    @Test
-    void verifySingleOrgMembership_throwsWhenUserStillLinkedAfterUnlink() {
-        OrgsDao orgsDao = mock(OrgsDao.class);
-        Org org = new Org();
-        org.setId("ORG_A");
-        org.setMembers(List.of("uid-1"));
-        when(orgsDao.findAll()).thenReturn(List.of(org));
-
-        LdapAccountsManager toTest = new LdapAccountsManager(mock(ApplicationEventPublisher.class), null, null, orgsDao,
-                null, null, null, Optional.empty());
-
-        Account account = mock(Account.class);
-        when(account.getUid()).thenReturn("uid-1");
-
-        assertThrows(IllegalStateException.class, () -> toTest.verifySingleOrgMembership(account, null));
-    }
-
-    @Test
-    void verifySingleOrgMembership_throwsWhenLinkedOrgDiffersFromExpected() {
-        OrgsDao orgsDao = mock(OrgsDao.class);
-        Org expectedOrg = new Org();
-        expectedOrg.setId("ORG_A");
-        expectedOrg.setMembers(List.of("uid-1"));
-        Org actualOrg = new Org();
-        actualOrg.setId("ORG_B");
-        when(orgsDao.findAll()).thenReturn(List.of(expectedOrg));
-        when(orgsDao.findByUser(any(Account.class))).thenReturn(actualOrg);
-
-        LdapAccountsManager toTest = new LdapAccountsManager(mock(ApplicationEventPublisher.class), null, null, orgsDao,
-                null, null, null, Optional.empty());
-
-        Account account = mock(Account.class);
-        when(account.getUid()).thenReturn("uid-1");
-
-        assertThrows(IllegalStateException.class, () -> toTest.verifySingleOrgMembership(account, expectedOrg));
     }
 
     // ===== addAccountToOrg name override =====

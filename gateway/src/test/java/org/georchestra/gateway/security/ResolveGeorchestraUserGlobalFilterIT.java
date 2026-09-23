@@ -46,6 +46,8 @@ public class ResolveGeorchestraUserGlobalFilterIT {
 
     @DynamicPropertySource
     static void setProperties(DynamicPropertyRegistry registry) {
+        registry.add("ldapHost", ldap::getHost);
+        registry.add("ldapPort", ldap::getMappedLdapPort);
         registry.add("httpEchoHost", httpEcho::getHost);
         registry.add("httpEchoPort", () -> httpEcho.getMappedPort(80));
     }

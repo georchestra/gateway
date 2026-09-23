@@ -5,11 +5,12 @@ spring:
     import: optional:classpath:/test-datadir/gateway/security.yaml
   cloud:
     gateway:
-      httpclient:
-        wiretap: false
-      httpserver:
-        wiretap: false
-
+      server:
+        webflux:
+          httpclient:
+            wiretap: false
+          httpserver:
+            wiretap: false
 logging:
   level:
     reactor.netty: info

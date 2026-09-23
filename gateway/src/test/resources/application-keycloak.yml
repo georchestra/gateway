@@ -13,14 +13,12 @@ georchestra:
         anonymous: true
     security:
       createNonExistingUsersInLDAP: true
-      oauth2.enabled: false
-      header-authentication:
-         enabled: true
+      oauth2.enabled: true
       ldap:
         default:
-          enabled: false
+          enabled: true
           extended: true
-          url: ldap://georchestra-ldap:389/
+          url: ldap://${ldapHost}:${ldapPort}/
           baseDn: dc=georchestra,dc=org
           adminDn: cn=admin,dc=georchestra,dc=org
           adminPassword: secret
@@ -51,6 +49,19 @@ spring:
             - SecureHeaders
             - TokenRelay
             - RemoveSecurityHeaders
-            # AddSecHeaders appends sec-* headers to proxied requests based on the
-            # georchestra.gateway.default-headers and georchestra.gateway.servies.<service>.headers config properties
             - AddSecHeaders
+          routes:
+          - id: root
+            uri: http://noop
+            predicates:
+              - Path=/
+            filters:
+              - RedirectTo=308, /whoami
+logging:
+  level:
+    reactor.netty: info
+    org.springframework.security: info
+    org.springframework.security.oauth2: trace
+    org.springframework.cloud.gateway: info # set trace for route matching logs
+    org.georchestra.gateway.config.security.accessrules: info
+    org.georchestra.gateway.security: debug

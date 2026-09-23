@@ -98,8 +98,9 @@ public class GeorchestraLdapAccountManagementConfiguration {
      * @return a {@link CreateAccountUserCustomizer} instance
      */
     @Bean
-    CreateAccountUserCustomizer createAccountUserCustomizer(AccountManager accountManager, AccountDao accountDao) {
-        return new CreateAccountUserCustomizer(accountManager, accountDao);
+    CreateAccountUserCustomizer createAccountUserCustomizer(AccountManager accountManager, AccountDao accountDao,
+            OpenIdConnectCustomConfig oidcCustomConfig) {
+        return new CreateAccountUserCustomizer(accountManager, accountDao, oidcCustomConfig);
     }
 
     /**
