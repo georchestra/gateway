@@ -79,14 +79,14 @@ public final class OpenIdHelper {
      * <p>
      * Spring does not support application/jwt response. This allow to intercept
      * lient response and transform body content from JWT to JSON. More details:
-     * https://github.com/georchestra/georchestra-gateway/issues/168
+     * https://github.com/georchestra/gateway/issues/168
      * <p>
      * 
      * @return An {@link ExchangeFilterFunction} used by {@link WebClient}
      */
     // Spring does not support application/jwt response. This allow to intercept
     // client response and transform body content from JWT to JSON.
-    // More details: https://github.com/georchestra/georchestra-gateway/issues/168
+    // More details: https://github.com/georchestra/gateway/issues/168
     public static ExchangeFilterFunction transformJWTClientResponseToJSON() {
         return ExchangeFilterFunction.ofResponseProcessor(clientResponse -> {
             if (clientResponse.headers().contentType().isPresent()

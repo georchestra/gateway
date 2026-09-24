@@ -16,7 +16,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SpringBootTest(classes = GeorchestraGatewayApplication.class)
 @ActiveProfiles({ "basicldap" })
 @AutoConfigureWebTestClient(timeout = "PT20S")
-@Disabled("ExtendedLdapAuthenticationProvider being built instead of a Basic one after https://github.com/georchestra/georchestra-gateway/pull/50/files ?")
+@Disabled("ExtendedLdapAuthenticationProvider being built instead of a Basic one after https://github.com/georchestra/gateway/pull/50/files ?")
 @Testcontainers(disabledWithoutDocker = true)
 public class BasicLdapAuthenticationIT {
 

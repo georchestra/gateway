@@ -2,7 +2,7 @@ site_name: geOrchestra Gateway Documentation
 site_description: Documentation for the geOrchestra Gateway service
 site_author: geOrchestra Community
 copyright: "&copy; 2009-2025 geOrchestra Community"
-repo_url: https://github.com/georchestra/georchestra-gateway
+repo_url: https://github.com/georchestra/gateway
 edit_uri: edit/main/docs/
 site_url: https://docs.georchestra.org/gateway/
 

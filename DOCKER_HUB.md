@@ -6,11 +6,6 @@
 -    **Where to get help**:  
      the [geOrchestra Github repo](https://github.com/georchestra/georchestra), [IRC chat](https://matrix.to/#/#georchestra:osgeo.org), Stack Overflow
 
-# Featured tags
-
-- `latest`, `2.0.x`, `1.1.2`
-- `latest-debug`, `2.0.x-debug`. It enables shell inside the container for debugging purposes.
-
 # Quick reference
 
 -	**Where to file issues**:  
@@ -20,7 +15,7 @@
      [`amd64`](https://hub.docker.com/r/amd64/docker/)
 
 -	**Source of this description**:  
-     [docs repo's directory](https://github.com/georchestra/georchestra-gateway/blob/main/DOCKER_HUB.md)
+     [docs repo's directory](https://github.com/georchestra/gateway/blob/main/DOCKER_HUB.md)
 
 # What is `georchestra/gateway`
 

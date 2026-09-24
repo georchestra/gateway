@@ -6,9 +6,9 @@
 </div>
 
 <p align="center">
-  <a href="https://github.com/georchestra/georchestra-gateway/actions"><img src="https://github.com/georchestra/georchestra-gateway/actions/workflows/maven.yml/badge.svg" alt="Build Status"></a>
+  <a href="https://github.com/georchestra/gateway/actions"><img src="https://github.com/georchestra/gateway/actions/workflows/maven.yml/badge.svg" alt="Build Status"></a>
   <a href="https://docs.georchestra.org/gateway/"><img src="https://img.shields.io/badge/docs-latest-blue" alt="Documentation"></a>
-  <a href="https://github.com/georchestra/georchestra-gateway/blob/main/LICENSE.txt"><img src="https://img.shields.io/github/license/georchestra/georchestra-gateway" alt="License"></a>
+  <a href="https://github.com/georchestra/gateway/blob/main/LICENSE.txt"><img src="https://img.shields.io/github/license/georchestra/gateway" alt="License"></a>
 </p>
 
 ## Overview

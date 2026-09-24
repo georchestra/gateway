@@ -18,9 +18,9 @@
     <module>gateway</module>
   </modules>
   <scm>
-    <connection>scm:git:https://github.com/georchestra/georchestra-gateway.git</connection>
-    <developerConnection>scm:git:https://github.com/georchestra/georchestra-gateway.git</developerConnection>
-    <url>https://github.com/georchestra/georchestra-gateway</url>
+    <connection>scm:git:https://github.com/georchestra/gateway.git</connection>
+    <developerConnection>scm:git:https://github.com/georchestra/gateway.git</developerConnection>
+    <url>https://github.com/georchestra/gateway</url>
   </scm>
   <distributionManagement>
     <repository>
