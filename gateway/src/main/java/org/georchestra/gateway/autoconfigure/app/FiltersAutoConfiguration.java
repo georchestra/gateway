@@ -26,6 +26,7 @@ import org.georchestra.gateway.filter.headers.HeaderFiltersConfiguration;
 import org.georchestra.gateway.logging.mdc.config.AuthenticationMdcConfigProperties;
 import org.georchestra.gateway.model.GatewayConfigProperties;
 import org.georchestra.gateway.model.GeorchestraTargetConfig;
+import org.geoserver.cloud.gateway.filter.GlobalUriFilter;
 import org.geoserver.cloud.gateway.filter.RouteProfileGatewayFilterFactory;
 import org.geoserver.cloud.gateway.filter.StripBasePathGatewayFilterFactory;
 import org.geoserver.cloud.gateway.predicate.RegExpQueryRoutePredicateFactory;
@@ -107,6 +108,18 @@ public class FiltersAutoConfiguration {
         loginParamRedirectGatewayFilterFactory.setRedirectServerAuthenticationEntryPoint(
                 redirectServerAuthenticationEntryPoint.orElse(new RedirectServerAuthenticationEntryPoint("/login")));
         return loginParamRedirectGatewayFilterFactory;
+    }
+
+    /**
+     * Registers a {@link GlobalFilter} that prevents already percent-encoded
+     * request URIs from being encoded again when proxied (e.g. {@code %27} becoming
+     * {@code %2527}).
+     *
+     * @return an instance of {@link GlobalUriFilter}
+     */
+    @Bean
+    GlobalUriFilter globalUriFilter() {
+        return new GlobalUriFilter();
     }
 
     /**
