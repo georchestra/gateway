@@ -272,9 +272,19 @@
                 <buildpacks>
                   <buildpack>urn:cnb:builder:paketo-buildpacks/java</buildpack>
                   <buildpack>paketobuildpacks/opentelemetry</buildpack>
+                  <buildpack>urn:cnb:builder:paketo-buildpacks/image-labels</buildpack>
                 </buildpacks>
                 <env>
                   <BP_OPENTELEMETRY_ENABLED>true</BP_OPENTELEMETRY_ENABLED>
+                  <!-- OCI image labels (https://github.com/opencontainers/image-spec/blob/main/annotations.md) -->
+                  <BP_OCI_SOURCE>https://github.com/georchestra/georchestra-gateway</BP_OCI_SOURCE>
+                  <BP_OCI_URL>https://github.com/georchestra/georchestra-gateway</BP_OCI_URL>
+                  <BP_OCI_DOCUMENTATION>https://docs.georchestra.org/</BP_OCI_DOCUMENTATION>
+                  <BP_OCI_TITLE>geOrchestra Gateway</BP_OCI_TITLE>
+                  <BP_OCI_DESCRIPTION>geOrchestra application gateway</BP_OCI_DESCRIPTION>
+                  <BP_OCI_VENDOR>geOrchestra</BP_OCI_VENDOR>
+                  <BP_OCI_VERSION>${imageTag}</BP_OCI_VERSION>
+                  <BP_OCI_LICENSES>GPL-3.0-only</BP_OCI_LICENSES>
                 </env>
               </image>
               <jvmOptions>-XX:MaxRAMPercentage=80 -XX:+UseParallelGC</jvmOptions>
