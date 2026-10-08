@@ -1,7 +1,7 @@
 # geOrchestra Gateway
 
 <div align="center">
-  <img src="docs/assets/images/georchestra-logo.svg" alt="geOrchestra Logo" width="300"/>
+  <img src="docs/images/georchestra-logo.svg" alt="geOrchestra Logo" width="300"/>
   <h3>Modern, Secure, and Flexible Gateway for the geOrchestra SDI Platform</h3>
 </div>
 
@@ -60,15 +60,18 @@ The Gateway provides flexible configuration options through YAML files:
 ```yaml
 georchestra:
   gateway:
-    # Your configuration goes here
-  security:
-    ldap:
-      enabled: true
-      url: ldap://ldap:389
-      # Additional LDAP configuration
+    security:
+      ldap:
+        default:
+          enabled: true
+          extended: true
+          url: ldap://ldap:389
+          # Additional LDAP configuration
 ```
 
-For detailed configuration options, see the [Configuration Guide](https://docs.georchestra.org/gateway/user_guide/configuration/).
+The configuration is read from the `gateway` directory of the [geOrchestra datadir](https://github.com/georchestra/datadir/tree/master/gateway).
+For detailed configuration options, see the [administration guide](https://docs.georchestra.org/gateway/en/latest/technical_guides/administration/)
+and the [configuration reference](https://docs.georchestra.org/gateway/en/latest/technical_guides/administration/properties/).
 
 ## Building from Source
 
@@ -109,16 +112,19 @@ make deb
 
 To work on the documentation locally:
 
+The documentation follows the [geOrchestra documentation template](https://github.com/georchestra/georchestra_documentation_template)
+(MkDocs + Material) and is published on Read the Docs.
+
 ```bash
-./setup_mkdocs.sh
-./run_mkdocs.sh
+bash mkdocs_installation.sh   # creates the venv_mkdocs Python virtual environment
+bash mkdocs_run.sh            # serves the documentation
 ```
 
 Then visit http://127.0.0.1:8000 in your browser.
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](https://docs.georchestra.org/gateway/en/latest/developer_guide/contributing/) for details.
+We welcome contributions! Please see our [Contribution guide](https://docs.georchestra.org/gateway/en/latest/technical_guides/contribute/) for details.
 
 ## About geOrchestra
 

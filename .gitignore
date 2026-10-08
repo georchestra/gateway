@@ -14,10 +14,10 @@
 .mvn/wrapper/maven-wrapper.jar
 .factorypath
 
-# Only ignore intermediate PlantUML files, keep the SVGs in git
-docs/structurizr/exports/
-
 # MkDocs virtual environment
 .venv/
 venv_mkdocs/
 site/
+.venv_mkdocs/
+docs_modules/
+docs/tableofcontent.md

@@ -7,7 +7,7 @@ This repository includes two Docker Compose files for development purposes:
 
 **These files are for development purposes only and should not be used in production environments.**
 
-For production deployments, please use the official [geOrchestra Docker Compose project](https://github.com/georchestra/docker) or follow the [Installation Guide](https://docs.georchestra.org/gateway/user_guide/installation/).
+For production deployments, please use the official [geOrchestra Docker Compose project](https://github.com/georchestra/docker) or follow the [Installation Guide](https://docs.georchestra.org/gateway/en/latest/technical_guides/installation/).
 
 ## Development Usage
 
