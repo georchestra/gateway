@@ -1,106 +1,141 @@
-site_name: geOrchestra Gateway Documentation
-site_description: Documentation for the geOrchestra Gateway service
-site_author: geOrchestra Community
-copyright: "&copy; 2009-2025 geOrchestra Community"
-repo_url: https://github.com/georchestra/gateway
+site_name: geOrchestra Gateway documentation
+
+repo_url: https://github.com/georchestra/georchestra-gateway
+repo_name: georchestra-gateway
+
+docs_dir: docs
 edit_uri: edit/main/docs/
-site_url: https://docs.georchestra.org/gateway/
+
+validation:
+  links:
+    anchors: warn
+    unrecognized_links: warn
+
 
 theme:
-  name: material
-  logo: assets/images/georchestra-logo.svg
-  favicon: assets/images/favicon.ico
+  language: en
   features:
-    - navigation.tabs
-    - navigation.sections
-    - navigation.expand
+    # - toc.integrate
     - navigation.indexes
-    - toc.integrate
-    - search.suggest
-    - search.highlight
-  palette:
-    # Light mode
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: custom
-      accent: custom
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    # Dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: custom
-      accent: custom
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
-  font:
-    text: Inter
-    code: Roboto Mono
-  custom_dir: docs/overrides
-  icon:
-    repo: fontawesome/brands/github
-  
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.footer
+    - content.code.copy
+  logo: images/georchestra-logo-white.svg
+  favicon: images/favicon.ico
+  name: material
+
+extra:
+  version:
+    provider: mike
+  generator: false
+  social:
+    - icon: fontawesome/solid/paper-plane
+      link: mailto:psc@georchestra.org
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/georchestra
+    - icon: fontawesome/brands/github
+      link: https://github.com/georchestra
+    - icon: fontawesome/brands/google
+      link: https://groups.google.com/g/georchestra?hl=en
+    - icon: fontawesome/brands/dev
+      link: https://groups.google.com/group/georchestra-dev?hl=fr
+    - icon: fontawesome/regular/comments
+      link: https://matrix.to/#/#georchestra:osgeo.org
+
+
+copyright: '© 2026 - geOrchestra'
+
 extra_css:
-  - assets/stylesheets/extra.css
+    - css/extra.css
+
+extra_javascript:
+    - assets/custom_versions.js
+
+# 1st and 2nd level tree structure to manage here
+# These entries match the documentation template
+# Here do not put .fr or .en in the name of the markdown: the i18n plugin manage this for you
+
+nav:
+    - Home: index.md
+    - User guide:
+        - Index: user_guide/index.md
+        - Signing in and out: user_guide/login.md
+        - Gateway endpoints: user_guide/endpoints.md
+    - Technical guides:
+        - Index: technical_guides/index.md
+        - Installation:
+            - technical_guides/installation/index.md
+            - Presentation: technical_guides/installation/presentation.md
+            - Prerequisites: technical_guides/installation/prerequisites.md
+            - Installation: technical_guides/installation/installation.md
+            - Configuration files: technical_guides/installation/configuration.md
+            - Debug: technical_guides/installation/debug.md
+            - Tests: technical_guides/installation/tests.md
+        - Administration:
+            - technical_guides/administration/index.md
+            - Services and routes: technical_guides/administration/services_and_routes.md
+            - Access rules: technical_guides/administration/access_rules.md
+            - Security headers: technical_guides/administration/headers.md
+            - Role mappings: technical_guides/administration/roles_mappings.md
+            - LDAP authentication: technical_guides/administration/ldap.md
+            - OAuth2 and OpenID Connect: technical_guides/administration/oauth2.md
+            - Header pre-authentication: technical_guides/administration/preauth.md
+            - Account creation: technical_guides/administration/accounts.md
+            - Filters and predicates: technical_guides/administration/filters.md
+            - UI customization: technical_guides/administration/ui_customization.md
+            - Sessions: technical_guides/administration/sessions.md
+            - Logging: technical_guides/administration/logging.md
+            - Monitoring: technical_guides/administration/monitoring.md
+            - Configuration reference: technical_guides/administration/properties.md
+        - Contribute:
+            - technical_guides/contribute/index.md
+            - Architecture: technical_guides/contribute/architecture.md
+            - Extension points: technical_guides/contribute/extensions.md
 
 markdown_extensions:
   - admonition
   - attr_list
-  - def_list
+  - tables
   - toc:
       permalink: true
+  - pymdownx.details
   - pymdownx.highlight
-  - pymdownx.superfences:
-      custom_fences:
-        - name: mermaid
-          class: mermaid
-          format: !!python/name:pymdownx.superfences.fence_code_format
-  - pymdownx.tabbed:
-      alternate_style: true
-  - pymdownx.tasklist:
-      custom_checkbox: true
-
-nav:
-  - Home: index.md
-  - User Guide:
-    - user_guide/index.md
-    - Installation: user_guide/installation.md
-    - Configuration: user_guide/configuration.md
-    - Authentication: user_guide/authentication.md
-    - Proxying Applications: user_guide/proxying_applications.md
-    - Access Rules: user_guide/access_rules.md
-    - Headers: user_guide/headers.md
-    - Logging: user_guide/logging.md
-    - UI Customization: user_guide/ui_customization.md
-    - Migration Guide: user_guide/migration.md
-  - Technical Documentation:
-    - arc42/index.md
-    - Introduction: arc42/introduction.md
-    - Architecture Goals: arc42/architecture_goals.md
-    - Context View: arc42/context_view.md
-    - Container View: arc42/container_view.md
-    - Component View: arc42/component_view.md
-    - Runtime View: arc42/runtime_view.md
-    - Deployment View: arc42/deployment_view.md
-    - Crosscutting Concerns: arc42/crosscutting.md
-    - Quality Requirements: arc42/quality_requirements.md
-    - Risks and Technical Debt: arc42/risks.md
-    - Glossary: arc42/glossary.md
-    - Using Structurizr: arc42/using-structurizr.md
-  - Developer Guide:
-    - developer_guide/index.md
-    - Building: developer_guide/building.md
-    - Code Style: developer_guide/code_style.md
-    - Project Structure: developer_guide/project_structure.md
-    - Testing: developer_guide/testing.md
-    - Custom Filters: developer_guide/custom_filters.md
-    - Authentication: developer_guide/authentication.md
-    - Logging: developer_guide/logging.md
-    - WebFlux MDC Propagation: developer_guide/webflux_mdc.md
-    - Contributing: developer_guide/contributing.md
-  - About: about.md
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
 
 plugins:
   - search
+  - callouts
+  - exclude:
+      glob:
+        - tableofcontent.md
+  - i18n:
+        docs_structure: suffix
+        fallback_to_default: true
+        reconfigure_material: true
+        reconfigure_search: true
+        languages:
+          - locale: en
+            default: true
+            name: English
+            build: true
+            site_name: "geOrchestra Gateway documentation"
+          # To add a French translation, create *.fr.md files next to the
+          # *.en.md ones and uncomment the following block.
+          # - locale: fr
+          #   name: Français
+          #   build: true
+          #   site_name: "Documentation de geOrchestra Gateway"
+          #   nav_translations:
+          #     Home: "Accueil"
+          #     User guide: "Guide utilisateur"
+          #     Index: "Sommaire"
+          #     Technical guides: "Guides techniques"
+          #     Administration: "Administrer"
+          #     Installation: "Installer"
+          #     Contribute: "Développer"
+
+  - git-revision-date-localized:
+      enable_creation_date: true
+      fallback_to_build_date: true
