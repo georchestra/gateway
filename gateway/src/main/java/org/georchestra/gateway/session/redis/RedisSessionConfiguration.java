@@ -18,6 +18,8 @@
  */
 package org.georchestra.gateway.session.redis;
 
+import java.time.Duration;
+
 import org.georchestra.gateway.security.ldap.extended.GeorchestraUserNamePasswordAuthenticationToken;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -29,6 +31,8 @@ import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSeriali
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.security.jackson2.SecurityJackson2Modules;
+import org.springframework.session.config.ReactiveSessionRepositoryCustomizer;
+import org.springframework.session.data.redis.ReactiveRedisSessionRepository;
 import org.springframework.session.data.redis.config.annotation.web.server.EnableRedisWebSession;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
@@ -92,6 +96,20 @@ public class RedisSessionConfiguration {
         redisTemplate.setKeySerializer(new StringRedisSerializer());
         redisTemplate.setValueSerializer(new StringRedisSerializer());
         return redisTemplate;
+    }
+
+    /**
+     * Applies {@code spring.session.redis.timeout} to Redis sessions.
+     * <p>
+     * {@link EnableRedisWebSession} disables Spring Boot's session
+     * auto-configuration and defaults to a 12 hours maximum inactive interval,
+     * ignoring the standard session timeout property.
+     * </p>
+     */
+    @Bean
+    ReactiveSessionRepositoryCustomizer<ReactiveRedisSessionRepository> sessionTimeoutCustomizer(
+            @Value("${spring.session.redis.timeout:12h}") Duration timeout) {
+        return repository -> repository.setDefaultMaxInactiveInterval(timeout);
     }
 
     /**
