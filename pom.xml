@@ -44,7 +44,7 @@
     <!-- or -Dfmt.action=validate -Dpom.fmt.action=verify -->
     <pom.fmt.action>sort</pom.fmt.action>
     <pom.fmt.skip>${fmt.skip}</pom.fmt.skip>
-    <lombok.version>1.18.36</lombok.version>
+    <lombok.version>1.18.48</lombok.version>
   </properties>
   <dependencyManagement>
     <dependencies>
