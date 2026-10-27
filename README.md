@@ -66,6 +66,7 @@ georchestra:
       enabled: true
       url: ldap://ldap:389
       # Additional LDAP configuration
+      defaultOrganization: public # use shortname
 ```
 
 For detailed configuration options, see the [Configuration Guide](https://docs.georchestra.org/gateway/user_guide/configuration/).
