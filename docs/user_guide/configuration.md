@@ -497,6 +497,18 @@ spring:
       password: my-super-redis-pwd
 ```
 
+#### Redis Session Timeout
+
+When Redis sessions are enabled, `server.reactive.session.timeout` is **ignored**. Use `spring.session.redis.timeout` instead to set the maximum inactive interval of a session (defaults to `12h`):
+
+```yaml
+spring:
+  session:
+    redis:
+      enabled: true
+      timeout: 24h # any Spring Duration format, e.g. 30m, 1440m, 2d
+```
+
 #### Benefits of Redis Sessions
 
 - **Horizontal Scaling**: Multiple Gateway instances can share the same session store
