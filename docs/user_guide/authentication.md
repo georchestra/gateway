@@ -86,6 +86,85 @@ When using the standard geOrchestra LDAP schema (`georchestra/ldap` image), this
 - Protected users and roles
 - Additional user attributes specific to geOrchestra
 
+## HTTP Basic challenge by User-Agent
+
+Some technical clients send their HTTP Basic credentials only after receiving
+`401 Unauthorized` with a `WWW-Authenticate: Basic` header. When a backend allows
+anonymous requests, it may instead return an OGC exception with HTTP 200, so that
+these clients never send their configured credentials.
+
+To challenge selected clients in the gateway before forwarding their anonymous
+request, configure `gateway/security.yaml`:
+
+```yaml
+georchestra:
+  gateway:
+    security:
+      httpBasicUserAgentPatterns:
+        - '(?i).*GeoWebCache.*'
+        - 'QGIS/.*'
+```
+
+These are examples: use the actual User-Agent headers sent by your clients.
+Patterns are Java regular expressions, matched against the entire User-Agent
+header. Any matching pattern triggers the challenge; use `.*` for substring
+matching and `(?i)` for case-insensitive matching. Invalid patterns prevent
+startup. A missing header does not match. The default empty list disables the
+feature.
+
+HTTP Basic authentication must already be enabled, through an enabled LDAP
+configuration. The challenge does not enable an authentication provider itself.
+It also works when LDAP form login is disabled and browser login uses OIDC.
+
+Authentication is processed first. A matching anonymous request receives a Basic
+challenge even when access rules allow anonymous access. A request authenticated
+with Basic credentials or an existing session proceeds through the normal access
+rules. Invalid Basic credentials are rejected by the existing authentication
+filter. The backend is not called for requests receiving the initial challenge.
+Clients whose User-Agent does not match retain their usual authentication flow.
+
+The User-Agent selects an authentication challenge; it never grants access or
+replaces the existing authorization rules.
+
+### Reuse HTTP Basic authentication through sessions
+
+To avoid repeated LDAP authentication for clients that send Basic credentials on
+every request, enable this additional option in `gateway/security.yaml`:
+
+```yaml
+georchestra:
+  gateway:
+    security:
+      httpBasicSessionEnabled: true
+```
+
+The default is `false`, preserving the gateway's standard Basic behavior. The
+existing Basic authentication provider must be configured. This option applies
+to HTTP Basic independently of User-Agent matching.
+
+A successful Basic authentication is stored in the standard WebSession. Existing
+Spring Session Redis configuration is used automatically; no credentials cache
+or separate session store is added. The client must return the `SESSION` cookie.
+Clients that do not return it still authenticate on each request.
+
+When the valid session already holds an authenticated username/password token
+for the same Basic username, the existing authentication is reused. Repeated
+Basic passwords for this username are not checked again while the session is
+valid. The session's identity and authorities remain effective until session
+expiration or logout, as for other authenticated sessions. No password cache is
+introduced. A different Basic username always goes through authentication, and
+an OIDC identity alone does not bypass checks of explicit Basic credentials.
+OIDC sessions continue to work when no Basic header is sent.
+
+New authentications retain Spring's session-id rotation. Reusing the unchanged
+authentication avoids saving it again and rotating the cookie on every request,
+which would cause races with parallel requests. Expiration and logout use the
+existing session lifecycle. Concurrent initial requests made before the client
+receives a session cookie may still authenticate separately.
+
+This reduces authentication load when clients reuse their cookies. It does not
+establish that repeated authentication was the cause of any observed timeout.
+
 ## OAuth2/OpenID Connect Authentication
 
 geOrchestra Gateway supports OAuth2 and OpenID Connect authentication in addition to LDAP authentication.

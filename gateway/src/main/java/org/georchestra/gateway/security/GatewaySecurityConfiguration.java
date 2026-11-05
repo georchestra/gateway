@@ -34,6 +34,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.ReactiveAuthenticationManagerAdapter;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.server.DefaultServerRedirectStrategy;
@@ -178,6 +179,16 @@ public class GatewaySecurityConfiguration {
             log.debug("Applying security customizer {}", customizer.getName());
             customizer.customize(http);
         });
+
+        if (securityConfigProperties.isHttpBasicSessionEnabled()) {
+            SessionAwareBasicAuthentication.configure(http, authenticationManager);
+        }
+
+        if (!securityConfigProperties.getHttpBasicUserAgentPatterns().isEmpty()) {
+            http.addFilterAfter(
+                    new UserAgentBasicAuthWebFilter(securityConfigProperties.getHttpBasicUserAgentPatterns()),
+                    SecurityWebFiltersOrder.ANONYMOUS_AUTHENTICATION);
+        }
 
         log.info("Security filter chain initialized");
 
