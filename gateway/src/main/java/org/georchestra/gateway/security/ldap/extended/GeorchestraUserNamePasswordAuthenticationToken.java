@@ -23,6 +23,7 @@ import java.util.Collection;
 
 import org.georchestra.security.api.UsersApi;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.CredentialsContainer;
 import org.springframework.security.core.GrantedAuthority;
 
 import lombok.Getter;
@@ -44,7 +45,7 @@ import lombok.RequiredArgsConstructor;
  * </p>
  */
 @RequiredArgsConstructor
-public class GeorchestraUserNamePasswordAuthenticationToken implements Authentication {
+public class GeorchestraUserNamePasswordAuthenticationToken implements Authentication, CredentialsContainer {
 
     @Serial
     private static final long serialVersionUID = 1L;
@@ -91,6 +92,18 @@ public class GeorchestraUserNamePasswordAuthenticationToken implements Authentic
     @Override
     public Object getCredentials() {
         return null;
+    }
+
+    /**
+     * Erases credentials from the wrapped token before the authentication is
+     * retained in a session. Returning null from getCredentials alone does not
+     * remove credentials held inside orig.
+     */
+    @Override
+    public void eraseCredentials() {
+        if (orig instanceof CredentialsContainer credentials) {
+            credentials.eraseCredentials();
+        }
     }
 
     /**

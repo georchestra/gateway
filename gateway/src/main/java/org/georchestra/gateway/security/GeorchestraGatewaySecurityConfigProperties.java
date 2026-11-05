@@ -76,6 +76,20 @@ public class GeorchestraGatewaySecurityConfigProperties implements Validator {
     private boolean disableLdapFormLogin = false;
 
     /**
+     * User-Agent regular expressions requiring an HTTP Basic challenge for
+     * unauthenticated requests, including requests to public services. Expressions
+     * match the entire header value. Empty by default (disabled).
+     */
+    private List<String> httpBasicUserAgentPatterns = List.of();
+
+    /**
+     * Save successful HTTP Basic authentication in the WebSession and reuse it for
+     * subsequent Basic requests with the same username. Requires the client to
+     * return the session cookie. Disabled by default.
+     */
+    private boolean httpBasicSessionEnabled = false;
+
+    /**
      * Flag indicating whether the user should be redirected to a page causing a
      * configureable delay after a successful login. Defaults to 0, which
      * deactivates the feature.
