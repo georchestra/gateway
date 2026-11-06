@@ -86,15 +86,12 @@ When using the standard geOrchestra LDAP schema (`georchestra/ldap` image), this
 - Protected users and roles
 - Additional user attributes specific to geOrchestra
 
-## HTTP Basic challenge by User-Agent
+## HTTP Basic challenges by User-Agent
 
-Some technical clients send their HTTP Basic credentials only after receiving
-`401 Unauthorized` with a `WWW-Authenticate: Basic` header. When a backend allows
-anonymous requests, it may instead return an OGC exception with HTTP 200, so that
-these clients never send their configured credentials.
-
-To challenge selected clients in the gateway before forwarding their anonymous
-request, configure `gateway/security.yaml`:
+Some clients send their Basic credentials only after receiving a `401 Unauthorized`
+response. When a backend accepts anonymous requests, these clients may never
+authenticate. Configure the gateway to challenge selected clients before forwarding
+their requests:
 
 ```yaml
 georchestra:
@@ -102,33 +99,22 @@ georchestra:
     security:
       httpBasicUserAgentPatterns:
         - '(?i).*GeoWebCache.*'
-        - 'QGIS/.*'
+        - '(?i).*QGIS.*'
 ```
 
-These are examples: use the actual User-Agent headers sent by your clients.
-Patterns are Java regular expressions, matched against the entire User-Agent
-header. Any matching pattern triggers the challenge; use `.*` for substring
-matching and `(?i)` for case-insensitive matching. Invalid patterns prevent
-startup. A missing header does not match. The default empty list disables the
-feature.
+Patterns are Java regular expressions matched against the entire User-Agent header.
+Adapt them to the headers sent by your clients. The default empty list disables
+this feature.
 
-HTTP Basic authentication must already be enabled, through an enabled LDAP
-configuration. The challenge does not enable an authentication provider itself.
-It also works when LDAP form login is disabled and browser login uses OIDC.
+Matching anonymous clients receive a Basic challenge, including when accessing
+public resources. Authenticated requests remain subject to the usual access rules;
+User-Agent matching does not grant access. An LDAP Basic authentication provider
+must be enabled.
 
-Authentication is processed first. A matching anonymous request receives a Basic
-challenge even when access rules allow anonymous access. A request authenticated
-with Basic credentials or an existing session proceeds through the normal access
-rules. Invalid Basic credentials are rejected by the existing authentication
-filter. The backend is not called for requests receiving the initial challenge.
-Clients whose User-Agent does not match retain their usual authentication flow.
+### Session reuse and periodic reauthentication
 
-The User-Agent selects an authentication challenge; it never grants access or
-replaces the existing authorization rules.
-
-### Reuse HTTP Basic authentication through sessions
-
-Configure this option in `gateway/security.yaml`:
+Enable session reuse to avoid verifying Basic credentials against LDAP on every
+request:
 
 ```yaml
 georchestra:
@@ -139,67 +125,26 @@ georchestra:
         reauthenticationInterval: 1h
 ```
 
-The defaults are `enabled: false` and `reauthenticationInterval: 1h`.
-The interval must be positive; duration values such as `30m`, `2h` or `PT1H`
-are accepted. Replace the former `httpBasicSessionEnabled` key with this nested
-configuration: the obsolete key deliberately fails startup instead of silently
-leaving the feature disabled. Keep your existing `httpBasicUserAgentPatterns`.
-The existing LDAP Basic provider must be configured. Session reuse applies to
-Basic independently of User-Agent matching; matching only chooses the initial
-challenge and never grants access.
+Successful authentication is stored in the existing session store, without
+credentials. Clients must return the session cookie to reuse it; otherwise, each
+request requires authentication.
 
-Successful Basic authentication is stored immediately in the existing
-WebSession/Redis store without credentials. A session cookie is returned on the
-first successful Basic response, including for preemptive Basic requests. There
-is no cookie-capability probe, preliminary cookie exchange, client exception,
-User-Agent-dependent session policy, or provisional session lifetime.
+Session reuse is disabled by default. The reauthentication interval defaults to
+`1h` and must be positive, for example `30m` or `2h`. It is measured from the last
+successful authentication and is not extended by subsequent requests.
 
-Clients returning the session cookie reuse their authentication within the
-configured interval. Clients discarding cookies authenticate on every request
-and may create one session per successful authentication. These unused sessions
-expire according to the normal session-store idle timeout. This is the deliberate
-standard-session behavior of this version; it no longer suppresses session
-creation for clients ignoring cookies. The former `GW_BASIC_SESSION` probe cookie
-is no longer issued or consulted.
+On the first request after this interval:
 
-Within the interval, a repeated Basic login reuses the authentication, including
-when the presented password differs; the password is not checked again until
-renewal. The original login is recorded separately from the canonical LDAP
-username. Reuse never moves the last successful verification timestamp.
+- Basic credentials are verified again, and the session's roles are refreshed.
+- A request containing only the session cookie receives a `401 Basic` challenge.
+  The client must resend its credentials.
+- Failed reauthentication invalidates the session.
 
-At or after the interval, the next request behaves as follows:
+Account and permission changes are therefore enforced at reauthentication.
+Normal session expiration and logout still apply.
 
-* With Basic credentials, the configured provider authenticates again and the
-  complete authentication replaces the previous one, including authorities.
-* With only a session cookie, the request receives `401` and `WWW-Authenticate:
-  Basic`. It does not reach the backend. The client must retry with credentials.
-* A failed renewal invalidates the session. A password change or account disable
-  is enforced when the provider next rejects authentication.
-
-The interval bounds reuse of a prior successful authentication. It is not an
-idle timeout, periodic background task, or hard maximum session lifetime.
-Revocation is not instantaneous. A new successful verification starts a new
-interval. Existing session expiration and logout remain effective.
-
-Renewal for the same identity keeps the session id stable. New logins and
-identity changes retain Spring's session-id rotation against fixation. Concurrent
-renewals with identical credentials for the same expired session are coalesced
-within one gateway process. Different passwords never share a verification.
-This coordination is not a distributed lock across multiple gateway replicas.
-
-New LDAP form sessions are marked separately and are not subject to Basic
-renewal. OIDC sessions keep their existing behavior. Legacy unmarked LDAP
-sessions cannot be distinguished reliably from old Basic sessions and require
-one verification after upgrading. An OIDC or form identity never bypasses
-validation of explicit Basic credentials.
-
-QGIS should renew automatically if it can resend stored Basic credentials after
-a challenge. This depends on its authentication configuration and must be tested
-with the deployed QGIS version, including an expired interval and WFS POST.
-A client with only a cookie and no available credentials cannot renew silently.
-
-Profile mapping may still perform LDAP reads. Session reuse reduces credential
-verification load; it does not prove or fix every possible timeout cause.
+Session reuse operates independently of User-Agent matching and requires an
+enabled LDAP Basic authentication provider.
 
 ## OAuth2/OpenID Connect Authentication
 
