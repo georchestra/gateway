@@ -40,6 +40,28 @@ georchestra:
       # Useful when LDAP must remain available for technical clients, while browser
       # users should authenticate only through OAuth2/OIDC.
       disableLdapFormLogin: false
+
+      # Challenge anonymous clients matching any of these User-Agent regexes with
+      # HTTP 401 and WWW-Authenticate: Basic, even for public services.
+      # Requires HTTP Basic authentication (LDAP) to be enabled. Existing
+      # authenticated sessions are accepted. Patterns match the entire header;
+      # use .* for a substring match. Empty by default (disabled).
+      # Example only: use the actual User-Agent sent by your client.
+      # httpBasicUserAgentPatterns:
+      #   - '(?i).*GeoWebCache.*'
+      httpBasicUserAgentPatterns: []
+
+      # Reuse Basic authentication through the existing session store.
+      # Requires the existing LDAP HTTP Basic authentication provider.
+      # A session is saved on the first successful Basic request, without probing
+      # cookie support. Clients must return the session cookie to reuse it.
+      # Each session is reauthenticated at the next request after the configured
+      # interval, even if it has been continuously active. Reuse does not extend it.
+      # Cookie-only requests at that point receive a 401 Basic challenge.
+      httpBasicSession:
+        enabled: false
+        reauthenticationInterval: 1h
+
       ldap:
         # Multiple LDAP data sources are supported. The first key defines a simple
         # name for them. The `default` one here, disabled by default, is pre-configured

@@ -34,6 +34,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.ReactiveAuthenticationManagerAdapter;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.server.DefaultServerRedirectStrategy;
@@ -166,6 +167,9 @@ public class GatewaySecurityConfiguration {
         http.formLogin(login -> login.authenticationFailureHandler(authenticationFailureHandler)
                 .requiresAuthenticationMatcher(ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, LOGIN_PAGE))
                 .authenticationEntryPoint(redirectServerAuthenticationEntryPoint));
+        if (securityConfigProperties.getHttpBasicSession().isEnabled()) {
+            http.formLogin(login -> login.securityContextRepository(SessionAwareBasicAuthentication.formRepository()));
+        }
 
         if (securityConfigProperties.isDelayAfterLogin()) {
             RedirectServerAuthenticationSuccessHandler delaySuccessfulLoginRedirect = new RedirectServerAuthenticationSuccessHandler(
@@ -178,6 +182,17 @@ public class GatewaySecurityConfiguration {
             log.debug("Applying security customizer {}", customizer.getName());
             customizer.customize(http);
         });
+
+        if (securityConfigProperties.getHttpBasicSession().isEnabled()) {
+            SessionAwareBasicAuthentication.configure(http, authenticationManager,
+                    securityConfigProperties.getHttpBasicSession().getReauthenticationInterval());
+        }
+
+        if (!securityConfigProperties.getHttpBasicUserAgentPatterns().isEmpty()) {
+            http.addFilterAfter(
+                    new UserAgentBasicAuthWebFilter(securityConfigProperties.getHttpBasicUserAgentPatterns()),
+                    SecurityWebFiltersOrder.ANONYMOUS_AUTHENTICATION);
+        }
 
         log.info("Security filter chain initialized");
 
