@@ -167,6 +167,9 @@ public class GatewaySecurityConfiguration {
         http.formLogin(login -> login.authenticationFailureHandler(authenticationFailureHandler)
                 .requiresAuthenticationMatcher(ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, LOGIN_PAGE))
                 .authenticationEntryPoint(redirectServerAuthenticationEntryPoint));
+        if (securityConfigProperties.getHttpBasicSession().isEnabled()) {
+            http.formLogin(login -> login.securityContextRepository(SessionAwareBasicAuthentication.formRepository()));
+        }
 
         if (securityConfigProperties.isDelayAfterLogin()) {
             RedirectServerAuthenticationSuccessHandler delaySuccessfulLoginRedirect = new RedirectServerAuthenticationSuccessHandler(
@@ -180,8 +183,9 @@ public class GatewaySecurityConfiguration {
             customizer.customize(http);
         });
 
-        if (securityConfigProperties.isHttpBasicSessionEnabled()) {
-            SessionAwareBasicAuthentication.configure(http, authenticationManager);
+        if (securityConfigProperties.getHttpBasicSession().isEnabled()) {
+            SessionAwareBasicAuthentication.configure(http, authenticationManager,
+                    securityConfigProperties.getHttpBasicSession().getReauthenticationInterval());
         }
 
         if (!securityConfigProperties.getHttpBasicUserAgentPatterns().isEmpty()) {

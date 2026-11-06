@@ -18,6 +18,7 @@
  */
 package org.georchestra.gateway.security;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -82,12 +83,30 @@ public class GeorchestraGatewaySecurityConfigProperties implements Validator {
      */
     private List<String> httpBasicUserAgentPatterns = List.of();
 
-    /**
-     * Save successful HTTP Basic authentication in the WebSession and reuse it for
-     * subsequent Basic requests with the same username. Requires the client to
-     * return the session cookie. Disabled by default.
-     */
-    private boolean httpBasicSessionEnabled = false;
+    /** HTTP Basic session options. Disabled by default. */
+    @Valid
+    private HttpBasicSession httpBasicSession = new HttpBasicSession();
+
+    @Data
+    @Accessors(chain = true)
+    public static class HttpBasicSession {
+        private boolean enabled = false;
+        private Duration reauthenticationInterval = Duration.ofHours(1);
+
+        public HttpBasicSession setReauthenticationInterval(Duration interval) {
+            if (interval == null || interval.isZero() || interval.isNegative()) {
+                throw new IllegalArgumentException("httpBasicSession.reauthenticationInterval must be positive");
+            }
+            this.reauthenticationInterval = interval;
+            return this;
+        }
+    }
+
+    /** Fail explicitly rather than silently ignoring the former configuration key. */
+    @Deprecated
+    public void setHttpBasicSessionEnabled(boolean enabled) {
+        throw new IllegalArgumentException("Replace httpBasicSessionEnabled with httpBasicSession.enabled");
+    }
 
     /**
      * Flag indicating whether the user should be redirected to a page causing a

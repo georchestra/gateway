@@ -51,12 +51,16 @@ georchestra:
       #   - '(?i).*GeoWebCache.*'
       httpBasicUserAgentPatterns: []
 
-      # Reuse successful Basic authentication through the existing session store.
-      # Clients must return the SESSION cookie. A different Basic username always
-      # triggers authentication. With a valid session, a repeated password for the
-      # same username is not checked again until the session expires or is logged out.
-      # Requires HTTP Basic authentication (LDAP) to be configured.
-      httpBasicSessionEnabled: false
+      # Reuse Basic authentication through the existing session store.
+      # Requires the existing LDAP HTTP Basic authentication provider.
+      # A session is saved on the first successful Basic request, without probing
+      # cookie support. Clients must return the session cookie to reuse it.
+      # Each session is reauthenticated at the next request after the configured
+      # interval, even if it has been continuously active. Reuse does not extend it.
+      # Cookie-only requests at that point receive a 401 Basic challenge.
+      httpBasicSession:
+        enabled: false
+        reauthenticationInterval: 1h
 
       ldap:
         # Multiple LDAP data sources are supported. The first key defines a simple

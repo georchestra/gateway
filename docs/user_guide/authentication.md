@@ -128,42 +128,78 @@ replaces the existing authorization rules.
 
 ### Reuse HTTP Basic authentication through sessions
 
-To avoid repeated LDAP authentication for clients that send Basic credentials on
-every request, enable this additional option in `gateway/security.yaml`:
+Configure this option in `gateway/security.yaml`:
 
 ```yaml
 georchestra:
   gateway:
     security:
-      httpBasicSessionEnabled: true
+      httpBasicSession:
+        enabled: true
+        reauthenticationInterval: 1h
 ```
 
-The default is `false`, preserving the gateway's standard Basic behavior. The
-existing Basic authentication provider must be configured. This option applies
-to HTTP Basic independently of User-Agent matching.
+The defaults are `enabled: false` and `reauthenticationInterval: 1h`.
+The interval must be positive; duration values such as `30m`, `2h` or `PT1H`
+are accepted. Replace the former `httpBasicSessionEnabled` key with this nested
+configuration: the obsolete key deliberately fails startup instead of silently
+leaving the feature disabled. Keep your existing `httpBasicUserAgentPatterns`.
+The existing LDAP Basic provider must be configured. Session reuse applies to
+Basic independently of User-Agent matching; matching only chooses the initial
+challenge and never grants access.
 
-A successful Basic authentication is stored in the standard WebSession. Existing
-Spring Session Redis configuration is used automatically; no credentials cache
-or separate session store is added. The client must return the `SESSION` cookie.
-Clients that do not return it still authenticate on each request.
+Successful Basic authentication is stored immediately in the existing
+WebSession/Redis store without credentials. A session cookie is returned on the
+first successful Basic response, including for preemptive Basic requests. There
+is no cookie-capability probe, preliminary cookie exchange, client exception,
+User-Agent-dependent session policy, or provisional session lifetime.
 
-When the valid session already holds an authenticated username/password token
-for the same Basic username, the existing authentication is reused. Repeated
-Basic passwords for this username are not checked again while the session is
-valid. The session's identity and authorities remain effective until session
-expiration or logout, as for other authenticated sessions. No password cache is
-introduced. A different Basic username always goes through authentication, and
-an OIDC identity alone does not bypass checks of explicit Basic credentials.
-OIDC sessions continue to work when no Basic header is sent.
+Clients returning the session cookie reuse their authentication within the
+configured interval. Clients discarding cookies authenticate on every request
+and may create one session per successful authentication. These unused sessions
+expire according to the normal session-store idle timeout. This is the deliberate
+standard-session behavior of this version; it no longer suppresses session
+creation for clients ignoring cookies. The former `GW_BASIC_SESSION` probe cookie
+is no longer issued or consulted.
 
-New authentications retain Spring's session-id rotation. Reusing the unchanged
-authentication avoids saving it again and rotating the cookie on every request,
-which would cause races with parallel requests. Expiration and logout use the
-existing session lifecycle. Concurrent initial requests made before the client
-receives a session cookie may still authenticate separately.
+Within the interval, a repeated Basic login reuses the authentication, including
+when the presented password differs; the password is not checked again until
+renewal. The original login is recorded separately from the canonical LDAP
+username. Reuse never moves the last successful verification timestamp.
 
-This reduces authentication load when clients reuse their cookies. It does not
-establish that repeated authentication was the cause of any observed timeout.
+At or after the interval, the next request behaves as follows:
+
+* With Basic credentials, the configured provider authenticates again and the
+  complete authentication replaces the previous one, including authorities.
+* With only a session cookie, the request receives `401` and `WWW-Authenticate:
+  Basic`. It does not reach the backend. The client must retry with credentials.
+* A failed renewal invalidates the session. A password change or account disable
+  is enforced when the provider next rejects authentication.
+
+The interval bounds reuse of a prior successful authentication. It is not an
+idle timeout, periodic background task, or hard maximum session lifetime.
+Revocation is not instantaneous. A new successful verification starts a new
+interval. Existing session expiration and logout remain effective.
+
+Renewal for the same identity keeps the session id stable. New logins and
+identity changes retain Spring's session-id rotation against fixation. Concurrent
+renewals with identical credentials for the same expired session are coalesced
+within one gateway process. Different passwords never share a verification.
+This coordination is not a distributed lock across multiple gateway replicas.
+
+New LDAP form sessions are marked separately and are not subject to Basic
+renewal. OIDC sessions keep their existing behavior. Legacy unmarked LDAP
+sessions cannot be distinguished reliably from old Basic sessions and require
+one verification after upgrading. An OIDC or form identity never bypasses
+validation of explicit Basic credentials.
+
+QGIS should renew automatically if it can resend stored Basic credentials after
+a challenge. This depends on its authentication configuration and must be tested
+with the deployed QGIS version, including an expired interval and WFS POST.
+A client with only a cookie and no available credentials cannot renew silently.
+
+Profile mapping may still perform LDAP reads. Session reuse reduces credential
+verification load; it does not prove or fix every possible timeout cause.
 
 ## OAuth2/OpenID Connect Authentication
 
