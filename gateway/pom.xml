@@ -275,6 +275,14 @@
                 </buildpacks>
                 <env>
                   <BP_OPENTELEMETRY_ENABLED>true</BP_OPENTELEMETRY_ENABLED>
+                  <!--
+                    The paketo memory calculator sets -XX:MaxDirectMemorySize=10M by default,
+                    which Netty exhausts under load ("OutOfMemoryError: Cannot reserve ... bytes
+                    of direct buffer memory"). Prepend a saner default to JAVA_TOOL_OPTIONS at
+                    launch time; a value set by the user in JAVA_TOOL_OPTIONS comes later and wins.
+                  -->
+                  <BPE_PREPEND_JAVA_TOOL_OPTIONS>-XX:MaxDirectMemorySize=128M</BPE_PREPEND_JAVA_TOOL_OPTIONS>
+                  <BPE_DELIM_JAVA_TOOL_OPTIONS xml:space="preserve"> </BPE_DELIM_JAVA_TOOL_OPTIONS>
                 </env>
               </image>
               <jvmOptions>-XX:MaxRAMPercentage=80 -XX:+UseParallelGC</jvmOptions>

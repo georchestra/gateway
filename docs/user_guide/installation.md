@@ -276,7 +276,7 @@ When deploying to Kubernetes, keep these considerations in mind:
 2. **Persistence**: Use PersistentVolumeClaims for data that needs to persist
 3. **Scaling**: Configure horizontal pod autoscaling for handling load spikes
 4. **Network Policies**: Restrict network access between pods
-5. **Resource Limits**: Set appropriate CPU and memory limits
+5. **Resource Limits**: Set appropriate CPU and memory limits. The JVM heap is sized automatically from the container memory limit. The image sets `-XX:MaxDirectMemorySize=128M` by default for Netty's direct buffers; you can override it with `JAVA_TOOL_OPTIONS` (e.g. `-XX:MaxDirectMemorySize=256M`)
 6. **Health Checks**: Implement readiness and liveness probes
 
 ## Debian Package Installation
