@@ -28,8 +28,9 @@ jobs:
         server-username: ARTIFACTORY_USERNAME_REF
         server-password: ARTIFACTORY_TOKEN_REF
 
+    # fail instead of reformatting when sources or pom.xml files are not formatted
     - name: "Build gateway"
-      run: make install test
+      run: make install test MVN_ARGS="-Dfmt.action=validate -Dpom.fmt.action=verify"
 
     - name: Getting image tag
       id: version

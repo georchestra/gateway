@@ -19,11 +19,12 @@ jobs:
         java-version: '21'
         cache: 'maven'
 
+    # fail instead of reformatting when sources or pom.xml files are not formatted
     - name: "Build gateway"
-      run: make install
+      run: make install MVN_ARGS="-Dfmt.action=validate -Dpom.fmt.action=verify"
 
     - name: "Run tests"
-      run: make test
+      run: make test MVN_ARGS="-Dfmt.action=validate -Dpom.fmt.action=verify"
 
     - name: "Build docker image"
       run: make docker

@@ -1,10 +1,14 @@
+# Extra maven arguments, e.g. MVN_ARGS="-Dfmt.action=validate -Dpom.fmt.action=verify"
+# to check (and fail on) source and pom formatting instead of rewriting the files (used by the CI)
+MVN_ARGS ?=
+
 all: install test docker
 
 install:
-	./mvnw clean install -ntp -DskipTests
+	./mvnw clean install -ntp -DskipTests $(MVN_ARGS)
 
 test:
-	./mvnw verify -ntp
+	./mvnw verify -ntp $(MVN_ARGS)
 
 docker:
 	./mvnw install -ntp -DskipTests -pl modules/org-resolvers,modules/sirene,modules/logging -am
