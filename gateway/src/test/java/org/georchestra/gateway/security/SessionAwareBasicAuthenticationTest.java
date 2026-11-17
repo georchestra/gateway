@@ -182,13 +182,17 @@ class SessionAwareBasicAuthenticationTest {
     }
 
     @Test
-    void differentUsernameAuthenticatesAndRotatesSession() {
+    void differentUsernameAuthenticatesWithoutReplacingExistingSession() {
         var cookie = login("alice");
-        var bob = request("bob", "password", cookie.getValue()).exchange().expectStatus().isOk()
-                .expectBody(String.class).isEqualTo("bob").returnResult().getResponseCookies().getFirst("SESSION");
-        assertThat(bob).isNotNull();
-        assertThat(bob.getValue()).isNotEqualTo(cookie.getValue());
+
+        request("bob", "password", cookie.getValue()).exchange().expectStatus().isOk().expectCookie()
+                .doesNotExist("SESSION").expectBody(String.class).isEqualTo("bob");
+
+        request(null, null, cookie.getValue()).exchange().expectStatus().isOk().expectBody(String.class)
+                .isEqualTo("alice");
+
         assertThat(authentications.get()).isEqualTo(2);
+        assertThat(sessions.getSessions()).containsOnlyKeys(cookie.getValue());
     }
 
     @Test
@@ -325,18 +329,18 @@ class SessionAwareBasicAuthenticationTest {
 
     @Test
     void nestedDurationBindsAndObsoleteFlatOptionFails() {
-        var source = new org.springframework.boot.context.properties.source.MapConfigurationPropertySource(
-                java.util.Map.of("http-basic-session.enabled", "true",
-                        "http-basic-session.reauthentication-interval", "30m"));
+        var source = new org.springframework.boot.context.properties.source.MapConfigurationPropertySource(java.util.Map
+                .of("http-basic-session.enabled", "true", "http-basic-session.reauthentication-interval", "30m"));
         var properties = new org.springframework.boot.context.properties.bind.Binder(source)
                 .bind("", org.springframework.boot.context.properties.bind.Bindable
-                        .of(GeorchestraGatewaySecurityConfigProperties.class)).get();
+                        .of(GeorchestraGatewaySecurityConfigProperties.class))
+                .get();
         assertThat(properties.getHttpBasicSession().getReauthenticationInterval())
                 .isEqualTo(java.time.Duration.ofMinutes(30));
         var old = new org.springframework.boot.context.properties.source.MapConfigurationPropertySource(
                 java.util.Map.of("http-basic-session-enabled", "true"));
-        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                new org.springframework.boot.context.properties.bind.Binder(old).bind("",
+        org.assertj.core.api.Assertions
+                .assertThatThrownBy(() -> new org.springframework.boot.context.properties.bind.Binder(old).bind("",
                         org.springframework.boot.context.properties.bind.Bindable
                                 .of(GeorchestraGatewaySecurityConfigProperties.class)))
                 .hasRootCauseMessage("Replace httpBasicSessionEnabled with httpBasicSession.enabled");
@@ -345,14 +349,13 @@ class SessionAwareBasicAuthenticationTest {
     @Test
     void clientsWithoutCookiesAuthenticateEachTimeAndSessionsExpireNormally() {
         for (int i = 0; i < 3; i++) {
-            client.get().uri("/whoami").headers(h -> h.setBasicAuth("alice", "password"))
-                    .exchange().expectStatus().isOk().expectCookie().exists("SESSION")
-                    .expectCookie().doesNotExist("GW_BASIC_SESSION");
+            client.get().uri("/whoami").headers(h -> h.setBasicAuth("alice", "password")).exchange().expectStatus()
+                    .isOk().expectCookie().exists("SESSION").expectCookie().doesNotExist("GW_BASIC_SESSION");
         }
         assertThat(authentications.get()).isEqualTo(3);
         assertThat(sessions.getSessions()).hasSize(3);
-        sessions.getSessions().values().forEach(session ->
-                assertThat(session.getMaxIdleTime()).isEqualTo(java.time.Duration.ofMinutes(30)));
+        sessions.getSessions().values()
+                .forEach(session -> assertThat(session.getMaxIdleTime()).isEqualTo(java.time.Duration.ofMinutes(30)));
         sessions.setClock(java.time.Clock.offset(java.time.Clock.systemUTC(), java.time.Duration.ofMinutes(31)));
         sessions.removeExpiredSessions();
         assertThat(sessions.getSessions()).isEmpty();
@@ -361,8 +364,8 @@ class SessionAwareBasicAuthenticationTest {
     @Test
     void anonymousChallengeCreatesNoSessionOrCapabilityCookie() {
         client.get().uri("https://example.org/whoami").header(HttpHeaders.USER_AGENT, "Apache-HttpClient/4.5")
-                .exchange().expectStatus().isUnauthorized().expectCookie().doesNotExist("SESSION")
-                .expectCookie().doesNotExist("GW_BASIC_SESSION");
+                .exchange().expectStatus().isUnauthorized().expectCookie().doesNotExist("SESSION").expectCookie()
+                .doesNotExist("GW_BASIC_SESSION");
         assertThat(sessions.getSessions()).isEmpty();
         assertThat(authentications.get()).isZero();
     }
@@ -375,8 +378,8 @@ class SessionAwareBasicAuthenticationTest {
         request("alice", "password", cookie.getValue()).exchange().expectStatus().isOk();
         assertThat((Object) session.getAttribute(SessionAwareBasicAuthentication.VERIFIED_AT)).isEqualTo(timestamp);
         age(cookie.getValue());
-        request("alice", "password", cookie.getValue()).exchange().expectStatus().isOk()
-                .expectCookie().doesNotExist("SESSION");
+        request("alice", "password", cookie.getValue()).exchange().expectStatus().isOk().expectCookie()
+                .doesNotExist("SESSION");
         assertThat(authentications.get()).isEqualTo(2);
         assertThat((Long) session.getAttribute(SessionAwareBasicAuthentication.VERIFIED_AT))
                 .isGreaterThan((Long) timestamp - 1000);
@@ -386,8 +389,8 @@ class SessionAwareBasicAuthenticationTest {
     void expiredCookieIsChallengedAndCredentialRetryRenewsSession() {
         var cookie = login("alice");
         age(cookie.getValue());
-        request(null, null, cookie.getValue()).exchange().expectStatus().isUnauthorized()
-                .expectHeader().exists(HttpHeaders.WWW_AUTHENTICATE);
+        request(null, null, cookie.getValue()).exchange().expectStatus().isUnauthorized().expectHeader()
+                .exists(HttpHeaders.WWW_AUTHENTICATE);
         assertThat(authentications.get()).isEqualTo(1);
         request("alice", "password", cookie.getValue()).exchange().expectStatus().isOk();
         request(null, null, cookie.getValue()).exchange().expectStatus().isOk();
@@ -408,14 +411,14 @@ class SessionAwareBasicAuthenticationTest {
     @Test
     void periodicAuthenticationReplacesRevokedAuthorities() {
         var cookie = login("alice");
-        client.get().uri("/authorities").cookie("SESSION", cookie.getValue()).exchange()
-                .expectStatus().isOk().expectBody(String.class).isEqualTo("ROLE_ADMIN");
+        client.get().uri("/authorities").cookie("SESSION", cookie.getValue()).exchange().expectStatus().isOk()
+                .expectBody(String.class).isEqualTo("ROLE_ADMIN");
         client.get().uri("/admin").cookie("SESSION", cookie.getValue()).exchange().expectStatus().isOk();
         state.admin = false;
         age(cookie.getValue());
         request("alice", "password", cookie.getValue()).exchange().expectStatus().isOk();
-        client.get().uri("/authorities").cookie("SESSION", cookie.getValue()).exchange()
-                .expectStatus().isOk().expectBody(String.class).isEqualTo("ROLE_USER");
+        client.get().uri("/authorities").cookie("SESSION", cookie.getValue()).exchange().expectStatus().isOk()
+                .expectBody(String.class).isEqualTo("ROLE_USER");
         client.get().uri("/admin").cookie("SESSION", cookie.getValue()).exchange().expectStatus().isForbidden();
         assertThat(authentications.get()).isEqualTo(2);
     }
@@ -427,9 +430,16 @@ class SessionAwareBasicAuthenticationTest {
         state.delayMillis = 300;
         var executor = Executors.newFixedThreadPool(16);
         try {
-            var futures = IntStream.range(0, 100).mapToObj(i -> CompletableFuture.runAsync(() ->
-                    request("alice", "password", cookie.getValue()).exchange().expectStatus().isOk()
-                            .expectCookie().doesNotExist("SESSION"), executor)).toArray(CompletableFuture[]::new);
+            var futures = IntStream
+                    .range(0,
+                            100)
+                    .mapToObj(
+                            i -> CompletableFuture
+                                    .runAsync(
+                                            () -> request("alice", "password", cookie.getValue()).exchange()
+                                                    .expectStatus().isOk().expectCookie().doesNotExist("SESSION"),
+                                            executor))
+                    .toArray(CompletableFuture[]::new);
             CompletableFuture.allOf(futures).orTimeout(30, java.util.concurrent.TimeUnit.SECONDS).join();
         } finally {
             executor.shutdownNow();
@@ -443,8 +453,8 @@ class SessionAwareBasicAuthenticationTest {
         var cookie = login("alice");
         age(cookie.getValue());
         state.delayMillis = 300;
-        var valid = CompletableFuture.runAsync(() -> request("alice", "password", cookie.getValue())
-                .exchange().expectStatus().isOk());
+        var valid = CompletableFuture
+                .runAsync(() -> request("alice", "password", cookie.getValue()).exchange().expectStatus().isOk());
         request("alice", "wrong", cookie.getValue()).exchange().expectStatus().isUnauthorized();
         valid.join();
         assertThat(authentications.get()).isEqualTo(3);
@@ -471,10 +481,10 @@ class SessionAwareBasicAuthenticationTest {
 
     @Test
     void formSessionIsNotSubjectToBasicRenewal() {
-        var cookie = client.get().uri("/form-session").exchange().expectStatus().isOk()
-                .returnResult(String.class).getResponseCookies().getFirst("SESSION");
-        request(null, null, cookie.getValue()).exchange().expectStatus().isOk()
-                .expectBody(String.class).isEqualTo("alice");
+        var cookie = client.get().uri("/form-session").exchange().expectStatus().isOk().returnResult(String.class)
+                .getResponseCookies().getFirst("SESSION");
+        request(null, null, cookie.getValue()).exchange().expectStatus().isOk().expectBody(String.class)
+                .isEqualTo("alice");
         assertThat(authentications.get()).isZero();
     }
 
@@ -501,12 +511,12 @@ class SessionAwareBasicAuthenticationTest {
     @Test
     void legacyProbeCookieDoesNotGrantAccessAndDoesNotAffectSessionCreation() {
         client.get().uri("/whoami").cookie("GW_BASIC_SESSION", "1")
-                .header(HttpHeaders.USER_AGENT, "Apache-HttpClient/4.5").exchange()
-                .expectStatus().isUnauthorized().expectCookie().doesNotExist("SESSION");
+                .header(HttpHeaders.USER_AGENT, "Apache-HttpClient/4.5").exchange().expectStatus().isUnauthorized()
+                .expectCookie().doesNotExist("SESSION");
         assertThat(authentications.get()).isZero();
         client.get().uri("/whoami").cookie("GW_BASIC_SESSION", "wrong")
-                .headers(h -> h.setBasicAuth("alice", "password")).exchange().expectStatus().isOk()
-                .expectCookie().exists("SESSION").expectCookie().doesNotExist("GW_BASIC_SESSION");
+                .headers(h -> h.setBasicAuth("alice", "password")).exchange().expectStatus().isOk().expectCookie()
+                .exists("SESSION").expectCookie().doesNotExist("GW_BASIC_SESSION");
         assertThat(authentications.get()).isEqualTo(1);
     }
 
@@ -537,8 +547,8 @@ class SessionAwareBasicAuthenticationTest {
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.NullSource
-    @org.junit.jupiter.params.provider.ValueSource(strings = {"QGIS/3.40", "Apache-HttpClient/4.5", "Java/21",
-            "python-requests/2", "UnknownClient"})
+    @org.junit.jupiter.params.provider.ValueSource(strings = { "QGIS/3.40", "Apache-HttpClient/4.5", "Java/21",
+            "python-requests/2", "UnknownClient" })
     void firstPreemptiveBasicCreatesSessionForEveryClient(String userAgent) {
         var request = client.get().uri("/whoami").headers(h -> h.setBasicAuth("alice", "password"));
         if (userAgent != null) {
@@ -571,9 +581,8 @@ class SessionAwareBasicAuthenticationTest {
 
     @Test
     void firstHttpsBasicResponseUsesStandardSecureSessionCookie() {
-        var result = client.get().uri("https://example.org/whoami")
-                .headers(h -> h.setBasicAuth("alice", "password")).exchange().expectStatus().isOk()
-                .returnResult(String.class);
+        var result = client.get().uri("https://example.org/whoami").headers(h -> h.setBasicAuth("alice", "password"))
+                .exchange().expectStatus().isOk().returnResult(String.class);
         var cookie = result.getResponseCookies().getFirst("SESSION");
         assertThat(cookie).isNotNull();
         assertThat(cookie.isSecure()).isTrue();
@@ -616,22 +625,24 @@ class SessionAwareBasicAuthenticationTest {
         }
 
         @Bean
-        SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http, AtomicInteger authentications, State state)
-                throws Exception {
+        SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http, AtomicInteger authentications,
+                State state) throws Exception {
             ReactiveAuthenticationManager manager = authentication -> Mono
                     .delay(java.time.Duration.ofMillis(state.delayMillis)).flatMap(ignored -> {
                         authentications.incrementAndGet();
                         if (!state.enabled) {
-                            return Mono.error(new org.springframework.security.authentication.DisabledException("Disabled"));
+                            return Mono.error(
+                                    new org.springframework.security.authentication.DisabledException("Disabled"));
                         }
-                        if ("extended".equals(authentication.getName()) && "password".equals(authentication.getCredentials())) {
+                        if ("extended".equals(authentication.getName())
+                                && "password".equals(authentication.getCredentials())) {
                             var essence = new org.springframework.security.ldap.userdetails.LdapUserDetailsImpl.Essence();
                             essence.setUsername("extended");
                             essence.setDn("uid=extended,ou=users,dc=example,dc=org");
-                            essence.addAuthority(
-                                    new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER"));
-                            var original = UsernamePasswordAuthenticationToken.authenticated(essence.createUserDetails(),
-                                    "SENSITIVE_TEST_PASSWORD",
+                            essence.addAuthority(new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                    "ROLE_USER"));
+                            var original = UsernamePasswordAuthenticationToken.authenticated(
+                                    essence.createUserDetails(), "SENSITIVE_TEST_PASSWORD",
                                     List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(
                                             "ROLE_USER")));
                             return Mono.just(
@@ -642,7 +653,9 @@ class SessionAwareBasicAuthenticationTest {
                                 || "alice@example.org".equals(authentication.getName()))
                                 && state.password.equals(authentication.getCredentials())) {
                             return Mono.just(UsernamePasswordAuthenticationToken.authenticated(
-                                    "alice@example.org".equals(authentication.getName()) ? "alice" : authentication.getName(), null,
+                                    "alice@example.org".equals(authentication.getName()) ? "alice"
+                                            : authentication.getName(),
+                                    null,
                                     List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(
                                             state.admin ? "ROLE_ADMIN" : "ROLE_USER"))));
                         }
@@ -657,8 +670,8 @@ class SessionAwareBasicAuthenticationTest {
             ServerHttpSecurityCustomizer customizer = security -> {
                 security.httpBasic(org.springframework.security.config.Customizer.withDefaults());
                 security.formLogin(form -> form.disable());
-                security.authorizeExchange(rules -> rules.pathMatchers("/admin").hasRole("ADMIN")
-                        .anyExchange().permitAll());
+                security.authorizeExchange(
+                        rules -> rules.pathMatchers("/admin").hasRole("ADMIN").anyExchange().permitAll());
                 security.exceptionHandling(exceptions -> exceptions.accessDeniedHandler(
                         new org.springframework.security.web.server.authorization.HttpStatusServerAccessDeniedHandler(
                                 org.springframework.http.HttpStatus.FORBIDDEN)));
@@ -669,17 +682,18 @@ class SessionAwareBasicAuthenticationTest {
 
         @Bean
         RouterFunction<ServerResponse> backend() {
-            return RouterFunctions.route().GET("/admin", request -> ServerResponse.ok().bodyValue("admin"))
-                    .GET("/authorities", request ->
-                            org.springframework.security.core.context.ReactiveSecurityContextHolder.getContext()
-                                    .flatMap(context -> ServerResponse.ok().bodyValue(context.getAuthentication()
-                                            .getAuthorities().iterator().next().getAuthority())))
+            return RouterFunctions.route().GET("/admin", request -> ServerResponse.ok().bodyValue("admin")).GET(
+                    "/authorities",
+                    request -> org.springframework.security.core.context.ReactiveSecurityContextHolder.getContext()
+                            .flatMap(context -> ServerResponse.ok().bodyValue(
+                                    context.getAuthentication().getAuthorities().iterator().next().getAuthority())))
                     .GET("/form-session", request -> SessionAwareBasicAuthentication.formRepository()
                             .save(request.exchange(), new org.springframework.security.core.context.SecurityContextImpl(
                                     UsernamePasswordAuthenticationToken.authenticated("alice", null, List.of())))
                             .then(ServerResponse.ok().bodyValue("form")))
-                    .GET("/thread", request ->
-                            Mono.defer(() -> ServerResponse.ok().bodyValue(Thread.currentThread().getName())))
+                    .GET("/thread",
+                            request -> Mono
+                                    .defer(() -> ServerResponse.ok().bodyValue(Thread.currentThread().getName())))
                     .GET("/oidc-session", request -> {
                         var user = new org.springframework.security.oauth2.core.user.DefaultOAuth2User(List.of(
                                 new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")),

@@ -51,8 +51,9 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Basic sessions with bounded authentication age and standard session persistence.
- * No passwords or successful-authentication results are cached across sessions.
+ * Basic sessions with bounded authentication age and standard session
+ * persistence. No passwords or successful-authentication results are cached
+ * across sessions.
  */
 final class SessionAwareBasicAuthentication {
     static final String VERIFIED_AT = SessionAwareBasicAuthentication.class.getName() + ".verifiedAt";
@@ -89,8 +90,8 @@ final class SessionAwareBasicAuthentication {
                 .securityContextRepository(new BasicRepository()));
         http.addFilterBefore((exchange, chain) -> {
             return ReactiveSecurityContextHolder.getContext()
-                    .flatMap(context -> Mono.justOrEmpty(context.getAuthentication()))
-                    .map(java.util.Optional::of).defaultIfEmpty(java.util.Optional.empty())
+                    .flatMap(context -> Mono.justOrEmpty(context.getAuthentication())).map(java.util.Optional::of)
+                    .defaultIfEmpty(java.util.Optional.empty())
                     .flatMap(current -> exchange.getSession().flatMap(session -> {
                         Authentication auth = latest(session, current.orElse(null));
                         if (isBasic(auth) && !Boolean.TRUE.equals(session.getAttribute(FORM_SESSION))
@@ -98,52 +99,59 @@ final class SessionAwareBasicAuthentication {
                             return challenge(exchange);
                         }
                         Mono<Void> next = chain.filter(exchange);
-                        return auth == null ? next : next.contextWrite(ReactiveSecurityContextHolder
-                                .withSecurityContext(Mono.just(new SecurityContextImpl(auth))));
+                        return auth == null ? next
+                                : next.contextWrite(ReactiveSecurityContextHolder
+                                        .withSecurityContext(Mono.just(new SecurityContextImpl(auth))));
                     })).contextWrite(context -> context.put(EXCHANGE_KEY, exchange));
         }, SecurityWebFiltersOrder.HTTP_BASIC);
-        // Profile resolution in the existing gateway may still perform blocking LDAP reads.
-        http.addFilterAfter((exchange, chain) -> ReactiveSecurityContextHolder.getContext()
-                .map(SecurityContext::getAuthentication).filter(SessionAwareBasicAuthentication::isBasic)
-                .hasElement().flatMap(basic -> basic
-                        ? Mono.defer(() -> chain.filter(exchange)).subscribeOn(Schedulers.boundedElastic())
-                        : chain.filter(exchange)), SecurityWebFiltersOrder.ANONYMOUS_AUTHENTICATION);
+        // Profile resolution in the existing gateway may still perform blocking LDAP
+        // reads.
+        http.addFilterAfter(
+                (exchange,
+                        chain) -> ReactiveSecurityContextHolder.getContext().map(SecurityContext::getAuthentication)
+                                .filter(SessionAwareBasicAuthentication::isBasic).hasElement()
+                                .flatMap(basic -> basic ? Mono.defer(() -> chain.filter(exchange))
+                                        .subscribeOn(Schedulers.boundedElastic()) : chain.filter(exchange)),
+                SecurityWebFiltersOrder.ANONYMOUS_AUTHENTICATION);
     }
 
     private Mono<Authentication> authenticate(Authentication token) {
         return Mono.deferContextual(context -> {
             ServerWebExchange exchange = context.get(EXCHANGE_KEY);
-            return exchange.getSession().flatMap(session -> ReactiveSecurityContextHolder.getContext()
-                    .flatMap(securityContext -> Mono.justOrEmpty(securityContext.getAuthentication()))
-                    .map(java.util.Optional::of).defaultIfEmpty(java.util.Optional.empty())
-                    .flatMap(current -> {
-                        Authentication existing = latest(session, current.orElse(null));
-                        String login = session.getAttribute(LOGIN_NAME);
-                        if (isBasic(existing) && token.getName().equals(login) && fresh(session, existing)) {
-                            return Mono.just(existing);
-                        }
-                        return verify(exchange, session, token, existing);
-                    }));
+            return exchange.getSession()
+                    .flatMap(session -> ReactiveSecurityContextHolder.getContext()
+                            .flatMap(securityContext -> Mono.justOrEmpty(securityContext.getAuthentication()))
+                            .map(java.util.Optional::of).defaultIfEmpty(java.util.Optional.empty()).flatMap(current -> {
+                                Authentication existing = latest(session, current.orElse(null));
+                                String login = session.getAttribute(LOGIN_NAME);
+                                if (isBasic(existing) && token.getName().equals(login) && fresh(session, existing)) {
+                                    return Mono.just(existing);
+                                }
+                                return verify(exchange, session, token, existing);
+                            }));
         });
     }
 
     private Mono<Authentication> verify(ServerWebExchange exchange, WebSession session, Authentication token,
             Authentication existing) {
-        boolean renewing = isBasic(existing) && !fresh(session, existing);
+        // A failed request must only invalidate the Basic session whose login
+        // is being renewed. In particular, preserve form and OIDC sessions,
+        // and do not invalidate Alice's session when Bob supplies credentials.
+        boolean renewing = isBasic(existing) && !Boolean.TRUE.equals(session.getAttribute(FORM_SESSION))
+                && token.getName().equals(session.getAttribute(LOGIN_NAME)) && !fresh(session, existing);
         Mono<Verified> operation;
         if (renewing) {
             // Coalesce only concurrent renewals of this session AND these credentials.
             // The salted digest is never logged. Entries disappear when verification ends.
             String key = session.getId() + ":" + credentialDigest(token);
-            operation = inFlight.computeIfAbsent(key, ignored -> performVerification(token)
-                    .doFinally(signal -> inFlight.remove(key)).cache());
+            operation = inFlight.computeIfAbsent(key,
+                    ignored -> performVerification(token).doFinally(signal -> inFlight.remove(key)).cache());
         } else {
             operation = performVerification(token);
         }
         return operation.doOnNext(result -> exchange.getAttributes().put(FRESH_RESULT_AT, result))
-                .map(Verified::authentication)
-                .onErrorResume(AuthenticationException.class, error -> renewing
-                        ? session.invalidate().then(Mono.error(error)) : Mono.error(error));
+                .map(Verified::authentication).onErrorResume(AuthenticationException.class,
+                        error -> renewing ? session.invalidate().then(Mono.error(error)) : Mono.error(error));
     }
 
     private Mono<Verified> performVerification(Authentication token) {
@@ -168,8 +176,8 @@ final class SessionAwareBasicAuthentication {
 
     private static Authentication latest(WebSession session, Authentication loaded) {
         SecurityContext stored = session.getAttribute(SECURITY_CONTEXT);
-        return isBasic(loaded) && stored != null && isBasic(stored.getAuthentication())
-                ? stored.getAuthentication() : loaded;
+        return isBasic(loaded) && stored != null && isBasic(stored.getAuthentication()) ? stored.getAuthentication()
+                : loaded;
     }
 
     private boolean fresh(WebSession session, Authentication authentication) {
@@ -241,6 +249,15 @@ final class SessionAwareBasicAuthentication {
             return exchange.getSession().flatMap(session -> {
                 SecurityContext previous = session.getAttribute(SECURITY_CONTEXT);
                 Authentication current = context.getAuthentication();
+                if (previous != null && (Boolean.TRUE.equals(session.getAttribute(FORM_SESSION))
+                        || !isBasic(previous.getAuthentication())
+                        || !identity(previous.getAuthentication()).equals(identity(current)))) {
+                    // An explicit Basic header authenticates this request only when
+                    // the cookie already belongs to another identity or login method.
+                    // Never replace that context or rotate its session id: the
+                    // browser may still be using it in a concurrent print request.
+                    return Mono.empty();
+                }
                 Verified verified = exchange.getAttribute(FRESH_RESULT_AT);
                 if (verified == null && previous != null && previous.getAuthentication() == current) {
                     return Mono.empty(); // Reuse does not extend the absolute verification interval.
