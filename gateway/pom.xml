@@ -280,9 +280,12 @@
                     which Netty exhausts under load ("OutOfMemoryError: Cannot reserve ... bytes
                     of direct buffer memory"). Prepend a saner default to JAVA_TOOL_OPTIONS at
                     launch time; a value set by the user in JAVA_TOOL_OPTIONS comes later and wins.
+                    The delimiter must be whitespace, but a literal space would be removed by
+                    sortpom (and by XML trimming), so use ${line.separator}, which is interpolated
+                    after parsing; the JVM splits JAVA_TOOL_OPTIONS on any whitespace.
                   -->
                   <BPE_PREPEND_JAVA_TOOL_OPTIONS>-XX:MaxDirectMemorySize=128M</BPE_PREPEND_JAVA_TOOL_OPTIONS>
-                  <BPE_DELIM_JAVA_TOOL_OPTIONS xml:space="preserve"> </BPE_DELIM_JAVA_TOOL_OPTIONS>
+                  <BPE_DELIM_JAVA_TOOL_OPTIONS>${line.separator}</BPE_DELIM_JAVA_TOOL_OPTIONS>
                 </env>
               </image>
               <jvmOptions>-XX:MaxRAMPercentage=80 -XX:+UseParallelGC</jvmOptions>
