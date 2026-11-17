@@ -276,7 +276,7 @@ When deploying to Kubernetes, keep these considerations in mind:
 2. **Persistence**: Use PersistentVolumeClaims for data that needs to persist
 3. **Scaling**: Configure horizontal pod autoscaling for handling load spikes
 4. **Network Policies**: Restrict network access between pods
-5. **Resource Limits**: Set appropriate CPU and memory limits
+5. **Resource Limits**: Set appropriate CPU and memory limits (see [JVM Memory Settings](#jvm-memory-settings))
 6. **Health Checks**: Implement readiness and liveness probes
 
 ## Debian Package Installation
@@ -335,6 +335,48 @@ Run the JAR file with:
 ```bash
 java -Dgeorchestra.datadir=/path/to/datadir -jar gateway/target/georchestra-gateway-X.Y.Z.jar
 ```
+
+## JVM Memory Settings
+
+Besides the heap, the Gateway uses **direct (off-heap) memory** for Netty's network buffers, which is capped by `-XX:MaxDirectMemorySize`. If this limit is too low, requests fail under load with:
+
+```
+java.lang.OutOfMemoryError: Cannot reserve 32768 bytes of direct buffer memory (allocated: ..., limit: ...)
+```
+
+A value of `128M` is a sensible default; increase it for high-traffic instances. The `jvm.buffer.memory.used` metric (tag `id=direct`) shows the actual usage.
+
+### Docker and Kubernetes
+
+The Docker image computes the JVM memory settings at startup from the container memory limit: the heap (`-Xmx`) gets what is left after metaspace, code cache, thread stacks and direct memory. The image sets `-XX:MaxDirectMemorySize=128M` by default (without it, the calculator would use only `10M`).
+
+To change it, set it in `JAVA_TOOL_OPTIONS`; your value takes precedence and the heap is sized accordingly:
+
+```yaml
+environment:
+  - JAVA_TOOL_OPTIONS=-Dgeorchestra.datadir=/etc/georchestra -XX:MaxDirectMemorySize=256M
+```
+
+### Debian package and JAR
+
+Outside the Docker image, nothing computes the memory settings for you: the JVM uses its own defaults (a heap of 1/4 of the host RAM, and direct memory capped to the heap size). Set both explicitly so the Gateway's footprint is predictable.
+
+When running the JAR directly:
+
+```bash
+java -Xmx512M -XX:MaxDirectMemorySize=128M \
+  -Dgeorchestra.datadir=/path/to/datadir \
+  -jar gateway/target/georchestra-gateway-X.Y.Z.jar
+```
+
+For the systemd service installed by the Debian package, add a drop-in (`sudo systemctl edit georchestra-gateway`):
+
+```ini
+[Service]
+Environment="JAVA_TOOL_OPTIONS=-Xmx512M -XX:MaxDirectMemorySize=128M"
+```
+
+then restart the service with `sudo systemctl restart georchestra-gateway`. `JAVA_TOOL_OPTIONS` is read by any JVM, so this works regardless of how the service starts Java.
 
 ## Configuration
 
