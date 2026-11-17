@@ -18,6 +18,7 @@
  */
 package org.georchestra.gateway.security;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -74,6 +75,38 @@ public class GeorchestraGatewaySecurityConfigProperties implements Validator {
      * Disable LDAP form login while keeping LDAP HTTP Basic authentication enabled.
      */
     private boolean disableLdapFormLogin = false;
+
+    /**
+     * User-Agent regular expressions requiring an HTTP Basic challenge for
+     * unauthenticated requests, including requests to public services. Expressions
+     * match the entire header value. Empty by default (disabled).
+     */
+    private List<String> httpBasicUserAgentPatterns = List.of();
+
+    /** HTTP Basic session options. Disabled by default. */
+    @Valid
+    private HttpBasicSession httpBasicSession = new HttpBasicSession();
+
+    @Data
+    @Accessors(chain = true)
+    public static class HttpBasicSession {
+        private boolean enabled = false;
+        private Duration reauthenticationInterval = Duration.ofHours(1);
+
+        public HttpBasicSession setReauthenticationInterval(Duration interval) {
+            if (interval == null || interval.isZero() || interval.isNegative()) {
+                throw new IllegalArgumentException("httpBasicSession.reauthenticationInterval must be positive");
+            }
+            this.reauthenticationInterval = interval;
+            return this;
+        }
+    }
+
+    /** Fail explicitly rather than silently ignoring the former configuration key. */
+    @Deprecated
+    public void setHttpBasicSessionEnabled(boolean enabled) {
+        throw new IllegalArgumentException("Replace httpBasicSessionEnabled with httpBasicSession.enabled");
+    }
 
     /**
      * Flag indicating whether the user should be redirected to a page causing a
