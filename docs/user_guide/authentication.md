@@ -485,6 +485,50 @@ georchestra:
 
 This works similarly to the pre-authentication auto-creation feature, ensuring a consistent user base regardless of the authentication method used.
 
+## Bearer Access Tokens (API calls)
+
+With OAuth2/OpenID Connect enabled, the gateway can also authenticate API calls
+carrying an OAuth2 access token (`Authorization: Bearer <token>`), so that
+scripts and tools can call the geOrchestra APIs as a user, including users who
+log in through an external provider (ProConnect, FranceConnect...) and have no
+LDAP password for HTTP Basic.
+
+```yaml
+georchestra:
+  gateway:
+    security:
+      oauth2:
+        enabled: true
+        bearer:
+          enabled: true
+          # client registration whose provider issues the tokens (optional if there is only one)
+          registration-id: keycloak
+          # expected "iss" claim (optional)
+          issuer: https://auth.example.com/realms/georchestra
+          # the "aud" claim must contain one of them (optional, recommended)
+          audiences: georchestra-gateway
+          # defaults to the provider's jwk-set-uri
+          # jwk-set-uri: https://auth.example.com/realms/georchestra/protocol/openid-connect/certs
+```
+
+- The token must be a JWT signed with a key of the provider's JWK set, not
+  expired, and match `issuer` / `audiences` when set.
+- It is mapped to a geOrchestra user exactly like a browser login with the same
+  client registration: standard claims, [custom claims mapping](#custom-claims-mapping)
+  (roles, organization...), `disableUidTransformation`, account creation in LDAP.
+  The access token must therefore carry the claims the mapping reads (with
+  Keycloak, add the same protocol mappers to the clients issuing API tokens).
+- No session is created: each call carries its token.
+- A request with an invalid token gets a `401` with a `WWW-Authenticate: Bearer`
+  error; requests without a bearer token are not affected (browser login,
+  anonymous access).
+
+Getting a token is up to the identity provider. With Keycloak, a public client
+with the OAuth 2.0 device authorization grant lets a user obtain an offline
+token from the command line, logging in in a browser (with any of its identity
+providers); a confidential client with a service account gives tokens for
+technical accounts (client credentials).
+
 ## Pre-Authentication via HTTP Headers
 
 geOrchestra Gateway also supports a pre-authentication mechanism where authentication is handled by an external component (such as a proxy server) that sends user information via HTTP headers.

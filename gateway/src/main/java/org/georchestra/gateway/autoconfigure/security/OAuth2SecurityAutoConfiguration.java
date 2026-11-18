@@ -18,6 +18,7 @@
  */
 package org.georchestra.gateway.autoconfigure.security;
 
+import org.georchestra.gateway.security.oauth2.BearerTokenConfiguration;
 import org.georchestra.gateway.security.oauth2.OAuth2Configuration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -58,7 +59,7 @@ public class OAuth2SecurityAutoConfiguration {
      * {@code georchestra.gateway.security.oauth2.enabled} is set to {@code true}.
      * </p>
      */
-    @Import(OAuth2Configuration.class)
+    @Import({ OAuth2Configuration.class, BearerTokenConfiguration.class })
     @ConditionalOnProperty(name = ENABLED_PROP, havingValue = "true", matchIfMissing = false)
     static @Configuration class Enabled {
 
